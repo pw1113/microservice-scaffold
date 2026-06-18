@@ -1,0 +1,135 @@
+package com.microservice.user.service.controller;
+
+
+import com.microservice.common.result.Result;
+import com.microservice.user.service.domain.dto.LoginDTO;
+import com.microservice.user.service.domain.dto.UserCreateDTO;
+import com.microservice.user.service.domain.dto.UserUpdateDTO;
+import com.microservice.user.service.domain.vo.UserVO;
+import com.microservice.user.service.service.IUserService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+/**
+ * 用户控制器
+ *
+ * @author microservice
+ */
+@Slf4j
+@RestController
+@RequestMapping("/user")
+@RequiredArgsConstructor
+@Tag(name = "用户管理", description = "用户相关接口，包括注册、登录、查询、修改、删除等")
+public class UserController {
+
+    private final IUserService userService;
+
+    /**
+     * 注册新用户
+     */
+    @PostMapping("/register")
+    @Operation(summary = "注册新用户", description = "创建新用户账号，用户名和邮箱不可重复，密码将进行BCrypt加密存储。")
+    public Result<Void> register(@RequestBody @Valid UserCreateDTO dto) {
+        log.info("收到注册请求 -> username={}, email={}, phone={}", dto.getUsername(), dto.getEmail(), dto.getPhone());
+        return Result.success();
+    }
+
+    /**
+     * 根据 ID 查询用户
+     */
+    @GetMapping("/{id}")
+    @Operation(summary = "根据ID查询用户", description = "根据用户ID查询用户详细信息。")
+    public Result<UserVO> getUserById(@PathVariable @Parameter(description = "用户ID") Long id) {
+        log.info("收到查询用户请求 -> id={}", id);
+        UserVO userVO = userService.getUserById(id);
+        return Result.success(userVO);
+    }
+
+    /**
+     * 根据用户名查询用户
+     */
+    @GetMapping("/username/{username}")
+    @Operation(summary = "根据用户名查询用户", description = "根据用户名精确查询用户信息。")
+    public Result<Void> getUserByUsername(@PathVariable @Parameter(description = "用户名") String username) {
+        log.info("收到查询用户请求 -> username={}", username);
+        return Result.success();
+    }
+
+    /**
+     * 根据 ID 集合批量查询用户
+     */
+    @PostMapping("/batch")
+    @Operation(summary = "根据ID集合批量查询用户", description = "传入用户ID列表，批量查询用户信息。")
+    public Result<Void> getUserByIds(@RequestBody List<Long> ids) {
+        log.info("收到批量查询用户请求 -> ids={}", ids);
+        return Result.success();
+    }
+
+    /**
+     * 根据 ID 删除用户
+     */
+    @DeleteMapping("/{id}")
+    @Operation(summary = "根据ID删除用户", description = "逻辑删除指定用户。")
+    public Result<Void> deleteUserById(
+            @PathVariable @Parameter(description = "用户ID") Long id) {
+        log.info("收到删除用户请求 -> id={}", id);
+        return Result.success();
+    }
+
+    /**
+     * 根据 ID 集合批量删除用户
+     */
+    @DeleteMapping("/batch")
+    @Operation(summary = "根据ID集合批量删除用户", description = "传入用户ID列表，批量逻辑删除用户。")
+    public Result<Void> deleteUsersByIds(@RequestBody List<Long> ids) {
+        log.info("收到批量删除用户请求 -> ids={}", ids);
+        return Result.success();
+    }
+
+    /**
+     * 修改用户信息
+     */
+    @PutMapping
+    @Operation(summary = "修改用户信息", description = "根据用户ID更新用户信息，用户名和密码不可通过此接口修改。")
+    public Result<Void> updateUser(@RequestBody @Valid UserUpdateDTO dto) {
+        log.info("收到修改用户请求 -> id={}, email={}, phone={}", dto.getId(), dto.getEmail(), dto.getPhone());
+        return Result.success();
+    }
+
+    /**
+     * 发送邮箱验证码
+     */
+    @PostMapping("/send-code")
+    @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。")
+    public Result<Void> sendVerifyCode(
+            @RequestParam @Parameter(description = "目标邮箱") String email) {
+        log.info("收到发送验证码请求 -> email={}", email);
+        return Result.success();
+    }
+
+    /**
+     * 用户登录
+     */
+    @PostMapping("/login")
+    @Operation(
+            summary = "用户登录",
+            description = "用户登录接口。登录流程：用户先输入用户名、密码、邮箱，" +
+                    "系统向邮箱发送验证码，用户收到验证码后将用户名、密码、邮箱、验证码一并提交完成登录。" +
+                    "deviceId 为可选参数，用于多设备管理。"
+    )
+    public Result<Void> login(@RequestBody @Valid LoginDTO loginDTO) {
+        log.info("收到登录请求 -> username={}, email={}, code={}, deviceId={}",
+                loginDTO.getUsername(),
+                loginDTO.getEmail(),
+                loginDTO.getCode(),
+                loginDTO.getDeviceId());
+        return Result.success();
+    }
+}

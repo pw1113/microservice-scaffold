@@ -1,0 +1,47 @@
+
+spring:
+  application:
+    name: microservice-gateway
+
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  cloud:
+    nacos:
+      discovery:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+      config:
+        server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        file-extension: yaml
+
+    sentinel:
+      transport:
+        dashboard: ${SENTINEL_DASHBOARD:localhost:8080}
+        port: ${SENTINEL_PORT:8719}
+      datasource:
+        flow:
+          nacos:
+            server-addr: ${NACOS_SERVER_ADDR:localhost:8848}
+            namespace: ${NACOS_NAMESPACE:public}
+            data-id: microservice-gateway-flow-rules
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: gw-flow
+
+  config:
+    import:
+      - nacos:shared-redis.yaml?refreshEnabled=true
+      - nacos:shared-jwt.yaml?refreshEnabled=true
+
+  autoconfigure:
+    exclude:
+      - com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration
+
+server:
+  port: ${GATEWAY_PORT:8080}
+
+logging:
+  file:
+    path: logs/microservice-gateway
