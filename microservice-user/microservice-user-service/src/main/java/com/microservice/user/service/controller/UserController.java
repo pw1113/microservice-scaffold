@@ -79,9 +79,9 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @Operation(summary = "根据ID删除用户", description = "逻辑删除指定用户。")
-    public Result<Void> deleteUserById(
-            @PathVariable @Parameter(description = "用户ID") Long id) {
+    public Result<Void> deleteUserById(@PathVariable @Parameter(description = "用户ID") Long id) {
         log.info("收到删除用户请求 -> id={}", id);
+        userService.deleteUserById(id);
         return Result.success();
     }
 
@@ -92,6 +92,7 @@ public class UserController {
     @Operation(summary = "根据ID集合批量删除用户", description = "传入用户ID列表，批量逻辑删除用户。")
     public Result<Void> deleteUsersByIds(@RequestBody List<Long> ids) {
         log.info("收到批量删除用户请求 -> ids={}", ids);
+        userService.deleteUsersByIds(ids);
         return Result.success();
     }
 
@@ -101,7 +102,8 @@ public class UserController {
     @PutMapping
     @Operation(summary = "修改用户信息", description = "根据用户ID更新用户信息，用户名和密码不可通过此接口修改。")
     public Result<Void> updateUser(@RequestBody @Valid UserUpdateDTO dto) {
-        log.info("收到修改用户请求 -> id={}, email={}, phone={}", dto.getId(), dto.getEmail(), dto.getPhone());
+        log.info("收到修改用户请求 -> UserUpdateDTO={}", dto);
+        userService.updateUser(dto);
         return Result.success();
     }
 
@@ -110,9 +112,9 @@ public class UserController {
      */
     @PostMapping("/send-code")
     @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。")
-    public Result<Void> sendVerifyCode(
-            @RequestParam @Parameter(description = "目标邮箱") String email) {
+    public Result<Void> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email) {
         log.info("收到发送验证码请求 -> email={}", email);
+        userService.sendVerifyCode(email);
         return Result.success();
     }
 

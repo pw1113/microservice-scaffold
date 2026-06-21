@@ -1,6 +1,7 @@
 package com.microservice.user.service.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
 import com.microservice.user.service.domain.vo.UserVO;
 
@@ -36,4 +37,32 @@ public interface IUserService extends IService<UserPO> {
      * @return 用户视图对象列表
      */
     List<UserVO> getUsersByIds(List<Long> ids);
+
+    /**
+     * 根据 ID 删除用户（逻辑删除）
+     *
+     * @param id 用户ID
+     */
+    void deleteUserById(Long id);
+
+    /**
+     * 根据 ID 集合批量删除用户（逻辑删除）
+     *
+     * @param ids 用户ID集合
+     */
+    void deleteUsersByIds(List<Long> ids);
+
+    /**
+     * 修改用户信息
+     *
+     * @param dto 用户更新DTO
+     */
+    void updateUser(UserUpdateDTO dto);
+
+    /**
+     * 发送邮箱验证码
+     *
+     * @param email 目标邮箱
+     */
+    void sendVerifyCode(String email);
 }

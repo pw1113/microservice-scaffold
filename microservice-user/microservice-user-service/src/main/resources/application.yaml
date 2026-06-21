@@ -19,8 +19,8 @@ spring:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT}
-      password: ${REDIS_PASSWORD:}
-      database: 0
+      password: ${REDIS_PASSWORD:123123}
+      database: ${REDIS_DATABASE}
       timeout: 3000ms
 
   # Jackson配置
