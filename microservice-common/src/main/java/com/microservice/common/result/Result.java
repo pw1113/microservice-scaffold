@@ -31,36 +31,36 @@ public class Result<T> implements Serializable {
     // ======================== 静态成功方法 ========================
 
     public static <T> Result<T> success() {
-        return new Result<>(ResultCode.SUCCESS.getCode(), ResultCode.SUCCESS.getMessage(), null);
+        return new Result<>(HttpResultCode.SUCCESS.getCode(), HttpResultCode.SUCCESS.getMessage(), null);
     }
 
     public static <T> Result<T> success(T data) {
-        return new Result<>(ResultCode.SUCCESS.getCode(), ResultCode.SUCCESS.getMessage(), data);
+        return new Result<>(HttpResultCode.SUCCESS.getCode(), HttpResultCode.SUCCESS.getMessage(), data);
     }
 
     public static <T> Result<T> success(String message, T data) {
-        return new Result<>(ResultCode.SUCCESS.getCode(), message, data);
+        return new Result<>(HttpResultCode.SUCCESS.getCode(), message, data);
     }
 
     // ======================== 静态失败方法 ========================
 
     public static <T> Result<T> fail() {
-        return new Result<>(ResultCode.ERROR.getCode(), ResultCode.ERROR.getMessage(), null);
+        return new Result<>(HttpResultCode.ERROR.getCode(), HttpResultCode.ERROR.getMessage(), null);
     }
 
     public static <T> Result<T> fail(String message) {
-        return new Result<>(ResultCode.ERROR.getCode(), message, null);
+        return new Result<>(HttpResultCode.ERROR.getCode(), message, null);
     }
 
     public static <T> Result<T> fail(Integer code, String message) {
         return new Result<>(code, message, null);
     }
 
-    public static <T> Result<T> fail(ResultCode resultCode) {
+    public static <T> Result<T> fail(IResultCode resultCode) {
         return new Result<>(resultCode.getCode(), resultCode.getMessage(), null);
     }
 
-    public static <T> Result<T> fail(ResultCode resultCode, String message) {
+    public static <T> Result<T> fail(IResultCode resultCode, String message) {
         return new Result<>(resultCode.getCode(), message, null);
     }
 

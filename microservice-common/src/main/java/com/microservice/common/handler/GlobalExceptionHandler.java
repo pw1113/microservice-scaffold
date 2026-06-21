@@ -3,8 +3,13 @@ package com.microservice.common.handler;
 import com.microservice.common.exception.BusinessException;
 import com.microservice.common.exception.ParamException;
 import com.microservice.common.exception.UnauthorizedException;
+import com.microservice.common.exception.token.TokenExpiredException;
+import com.microservice.common.exception.token.TokenInvalidException;
+import com.microservice.common.exception.token.TokenBlacklistedException;
+import com.microservice.common.exception.user.UserNotFoundException;
+import com.microservice.common.exception.user.UserNotLoginException;
+import com.microservice.common.result.HttpResultCode;
 import com.microservice.common.result.Result;
-import com.microservice.common.result.ResultCode;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,10 +37,52 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // ======================== Token 异常（需要特殊处理） ========================
+
+    /**
+     * Token 过期异常处理 - 返回 401 状态码
+     */
+    @ExceptionHandler(TokenExpiredException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<Void> handleTokenExpiredException(TokenExpiredException e, HttpServletRequest request) {
+        log.warn("[TokenExpiredException] path={}, message={}", request.getRequestURI(), e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    /**
+     * Token 无效异常处理 - 返回 401 状态码
+     */
+    @ExceptionHandler(TokenInvalidException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<Void> handleTokenInvalidException(TokenInvalidException e, HttpServletRequest request) {
+        log.warn("[TokenInvalidException] path={}, message={}", request.getRequestURI(), e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    /**
+     * Token 被拉黑异常处理 - 返回 401 状态码
+     */
+    @ExceptionHandler(TokenBlacklistedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<Void> handleTokenBlacklistedException(TokenBlacklistedException e, HttpServletRequest request) {
+        log.warn("[TokenBlacklistedException] path={}, message={}", request.getRequestURI(), e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
+    /**
+     * 用户未登录异常处理 - 返回 401 状态码
+     */
+    @ExceptionHandler(UserNotLoginException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Result<Void> handleUserNotLoginException(UserNotLoginException e, HttpServletRequest request) {
+        log.warn("[UserNotLoginException] path={}, message={}", request.getRequestURI(), e.getMessage());
+        return Result.fail(e.getCode(), e.getMessage());
+    }
+
     // ======================== 业务异常 ========================
 
     /**
-     * 业务异常处理
+     * 业务异常处理（兜底）
      */
     @ExceptionHandler(BusinessException.class)
     public Result<Void> handleBusinessException(BusinessException e, HttpServletRequest request) {
@@ -73,7 +120,7 @@ public class GlobalExceptionHandler {
                 .map(f -> f.getField() + ": " + f.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         log.warn("[MethodArgumentNotValid] path={}, message={}", request.getRequestURI(), message);
-        return Result.fail(ResultCode.BAD_REQUEST.getCode(), message);
+        return Result.fail(HttpResultCode.BAD_REQUEST.getCode(), message);
     }
 
     /**
@@ -85,7 +132,7 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .collect(Collectors.joining(", "));
         log.warn("[BindException] path={}, message={}", request.getRequestURI(), message);
-        return Result.fail(ResultCode.BAD_REQUEST.getCode(), message);
+        return Result.fail(HttpResultCode.BAD_REQUEST.getCode(), message);
     }
 
     /**
@@ -94,7 +141,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public Result<Void> handleMissingParam(MissingServletRequestParameterException e, HttpServletRequest request) {
         log.warn("[MissingParam] path={}, param={}", request.getRequestURI(), e.getParameterName());
-        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "缺少必要参数: " + e.getParameterName());
+        return Result.fail(HttpResultCode.BAD_REQUEST.getCode(), "缺少必要参数: " + e.getParameterName());
     }
 
     /**
@@ -103,7 +150,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public Result<Void> handleTypeMismatch(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
         log.warn("[TypeMismatch] path={}, param={}", request.getRequestURI(), e.getName());
-        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "参数类型错误: " + e.getName());
+        return Result.fail(HttpResultCode.BAD_REQUEST.getCode(), "参数类型错误: " + e.getName());
     }
 
     /**
@@ -112,7 +159,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public Result<Void> handleDataIntegrityViolation(DataIntegrityViolationException e, HttpServletRequest request) {
         log.warn("[DataIntegrityViolation] path={}, message={}", request.getRequestURI(), e.getMessage());
-        return Result.fail(ResultCode.CONFLICT.getCode(), "数据冲突，请检查输入信息");
+        return Result.fail(HttpResultCode.CONFLICT.getCode(), "数据冲突，请检查输入信息");
     }
 
     /**
@@ -121,7 +168,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public Result<Void> handleMessageNotReadable(HttpMessageNotReadableException e, HttpServletRequest request) {
         log.warn("[MessageNotReadable] path={}", request.getRequestURI());
-        return Result.fail(ResultCode.BAD_REQUEST.getCode(), "请求体格式错误");
+        return Result.fail(HttpResultCode.BAD_REQUEST.getCode(), "请求体格式错误");
     }
 
     // ======================== Web 异常 ========================
@@ -133,7 +180,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public Result<Void> handleNotFound(NoHandlerFoundException e, HttpServletRequest request) {
         log.warn("[NoHandlerFound] path={}", request.getRequestURI());
-        return Result.fail(ResultCode.NOT_FOUND);
+        return Result.fail(HttpResultCode.NOT_FOUND);
     }
 
     /**
@@ -143,7 +190,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.METHOD_NOT_ALLOWED)
     public Result<Void> handleMethodNotSupported(HttpRequestMethodNotSupportedException e, HttpServletRequest request) {
         log.warn("[MethodNotSupported] path={}, method={}", request.getRequestURI(), e.getMethod());
-        return Result.fail(ResultCode.METHOD_NOT_ALLOWED);
+        return Result.fail(HttpResultCode.METHOD_NOT_ALLOWED);
     }
 
     // ======================== 兜底异常 ========================
@@ -155,7 +202,7 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<Void> handleException(Exception e, HttpServletRequest request) {
         log.error("[UnknownException] path={}, exception={}", request.getRequestURI(), e.getClass().getName(), e);
-        return Result.fail(ResultCode.ERROR);
+        return Result.fail(HttpResultCode.ERROR);
     }
 
 }

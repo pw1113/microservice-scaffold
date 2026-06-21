@@ -7,10 +7,15 @@ import lombok.Getter;
  * 统一响应状态码枚举
  *
  * @author microservice
+ * @deprecated 已拆分为各业务域独立的状态码枚举，请使用 {@link HttpResultCode}、{@link UserResultCode}、
+ *             {@link TokenResultCode}、{@link VerifyCodeResultCode}、{@link FileResultCode}、
+ *             {@link SystemResultCode}、{@link FeignResultCode} 替代。
+ *             为保持向后兼容，暂时保留此类。
  */
+@Deprecated
 @Getter
 @AllArgsConstructor
-public enum ResultCode {
+public enum ResultCode implements IResultCode {
 
     /** 成功 */
     SUCCESS(200, "操作成功"),

@@ -1,6 +1,7 @@
 package com.microservice.common.exception;
 
-import com.microservice.common.result.ResultCode;
+import com.microservice.common.result.HttpResultCode;
+import com.microservice.common.result.IResultCode;
 import lombok.Getter;
 
 /**
@@ -15,7 +16,7 @@ public class ParamException extends RuntimeException {
 
     public ParamException(String message) {
         super(message);
-        this.code = ResultCode.BAD_REQUEST.getCode();
+        this.code = HttpResultCode.BAD_REQUEST.getCode();
     }
 
     public ParamException(Integer code, String message) {
@@ -23,7 +24,7 @@ public class ParamException extends RuntimeException {
         this.code = code;
     }
 
-    public ParamException(ResultCode resultCode) {
+    public ParamException(IResultCode resultCode) {
         super(resultCode.getMessage());
         this.code = resultCode.getCode();
     }

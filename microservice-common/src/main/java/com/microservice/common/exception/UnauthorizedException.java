@@ -1,6 +1,7 @@
 package com.microservice.common.exception;
 
-import com.microservice.common.result.ResultCode;
+import com.microservice.common.result.HttpResultCode;
+import com.microservice.common.result.IResultCode;
 import lombok.Getter;
 
 /**
@@ -15,7 +16,7 @@ public class UnauthorizedException extends RuntimeException {
 
     public UnauthorizedException(String message) {
         super(message);
-        this.code = ResultCode.UNAUTHORIZED.getCode();
+        this.code = HttpResultCode.UNAUTHORIZED.getCode();
     }
 
     public UnauthorizedException(Integer code, String message) {
@@ -23,7 +24,7 @@ public class UnauthorizedException extends RuntimeException {
         this.code = code;
     }
 
-    public UnauthorizedException(ResultCode resultCode) {
+    public UnauthorizedException(IResultCode resultCode) {
         super(resultCode.getMessage());
         this.code = resultCode.getCode();
     }
