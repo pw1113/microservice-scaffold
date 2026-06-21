@@ -61,8 +61,13 @@ public interface IUserService extends IService<UserPO> {
 
     /**
      * 发送邮箱验证码
+     * <p>
+     * 生成6位随机验证码，存入Redis缓存（5分钟过期），并通过邮件发送给用户。
+     * 同一邮箱在验证码有效期内不可重复获取。
+     * </p>
      *
      * @param email 目标邮箱
+     * @return 生成的6位验证码
      */
-    void sendVerifyCode(String email);
+    String sendVerifyCode(String email);
 }

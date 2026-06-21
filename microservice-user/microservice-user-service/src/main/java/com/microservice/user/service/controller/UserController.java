@@ -109,13 +109,16 @@ public class UserController {
 
     /**
      * 发送邮箱验证码
+     * <p>
+     * 同一邮箱在5分钟内不可重复获取验证码，重复请求将抛出异常。
+     * </p>
      */
     @PostMapping("/send-code")
-    @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。")
-    public Result<Void> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email) {
+    @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。同一邮箱5分钟内不可重复获取。")
+    public Result<String> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email) {
         log.info("收到发送验证码请求 -> email={}", email);
-        userService.sendVerifyCode(email);
-        return Result.success();
+        String code = userService.sendVerifyCode(email);
+        return Result.success(code);
     }
 
     /**

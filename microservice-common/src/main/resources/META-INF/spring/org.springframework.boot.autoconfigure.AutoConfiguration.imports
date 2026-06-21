@@ -10,6 +10,9 @@ com.microservice.common.config.SpringDocConfig
 # Redis 配置 —— 自定义 RedisTemplate 序列化方式，兼容 JavaTimeModule（需要 redis 依赖）
 com.microservice.common.config.RedisConfig
 
+# Spring Cache + Redis 缓存配置 —— 启用 @EnableCaching，配置 RedisCacheManager（需要 redis 依赖）
+com.microservice.common.config.CacheConfig
+
 # MyBatis-Plus 配置 —— 分页插件、乐观锁、自动填充 createTime/updateTime（需要 mybatis-plus 依赖）
 com.microservice.common.config.MyBatisPlusConfig
 

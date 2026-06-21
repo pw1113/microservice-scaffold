@@ -3,8 +3,10 @@ package com.microservice.user.service.service.serviceImpl;
 import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.microservice.common.config.CacheConfig;
 import com.microservice.common.constant.SecurityConstants;
 import com.microservice.common.exception.user.UserNotFoundException;
+import com.microservice.common.exception.verifycode.VerificationCodeCooldownException;
 import com.microservice.common.exception.verifycode.VerificationCodeSendFailedException;
 import com.microservice.common.util.EmailUtils;
 import com.microservice.common.util.VerifyCodeUtils;
@@ -16,11 +18,11 @@ import com.microservice.user.service.service.IUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
-import java.time.Duration;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -34,14 +36,11 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements IUserService {
 
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final CacheManager cacheManager;
     private final JavaMailSender javaMailSender;
 
     @Value("${app.mail.from}")
     private String mailFrom;
-
-    /** 验证码在 Redis 中的过期时间（分钟） */
-    private static final long VERIFY_CODE_EXPIRE_MINUTES = 5;
 
     @Override
     public UserVO getUserById(Long id) {
@@ -122,20 +121,45 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     }
 
     @Override
-    public void sendVerifyCode(String email) {
-        // 生成6位验证码
+    public String sendVerifyCode(String email) {
+        // 获取验证码缓存实例（底层由 RedisCacheManager 管理，对应 Redis 中 "verify_code::" 前缀）
+        Cache cache = cacheManager.getCache(CacheConfig.CACHE_VERIFY_CODE);
+        if (cache == null) {
+            throw new IllegalStateException("验证码缓存未初始化，请检查 CacheConfig 配置");
+        }
+
+        // 构建缓存 Key：使用 Redis 业务前缀 + 邮箱，保证 key 的可读性和唯一性
+        // 实际 Redis key 格式：verify_code::auth:verify_code:{email}
+        String cacheKey = SecurityConstants.REDIS_KEY_VERIFY_CODE + email;
+
+        // ====== 第一步：检查该邮箱是否已存在未过期的验证码（防刷机制） ======
+        // 如果缓存命中，说明用户在 5 分钟内已请求过验证码，拒绝重复请求
+        Cache.ValueWrapper existingWrapper = cache.get(cacheKey);
+        if (existingWrapper != null) {
+            log.warn("验证码冷却中，拒绝重复发送 -> email={}", email);
+            throw new VerificationCodeCooldownException();
+        }
+
+        // ====== 第二步：生成 6 位随机验证码并存入缓存 ======
+        // 使用 SecureRandom 生成验证码，确保随机性安全
         String code = VerifyCodeUtils.generateCode();
-        // 存储到 Redis，key = auth:verify_code:{email}
-        String redisKey = SecurityConstants.REDIS_KEY_VERIFY_CODE + email;
-        redisTemplate.opsForValue().set(redisKey, code, Duration.ofMinutes(VERIFY_CODE_EXPIRE_MINUTES));
-        log.info("验证码已存入Redis -> email={}, key={}", email, redisKey);
-        // 发送验证码邮件
+        // 将验证码存入 Spring Cache（底层写入 Redis），TTL 由 CacheConfig 统一配置（5 分钟）
+        // put 操作是原子性的，缓存过期后自动清除，无需手动管理生命周期
+        cache.put(cacheKey, code);
+        log.info("验证码已存入缓存 -> email={}, cacheKey={}", email, cacheKey);
+
+        // ====== 第三步：发送验证码邮件 ======
         try {
             EmailUtils.sendVerifyCode(javaMailSender, mailFrom, email, code);
+            log.info("验证码邮件发送成功 -> email={}", email);
         } catch (Exception e) {
-            // 发送失败时清理 Redis 中的验证码
-            redisTemplate.delete(redisKey);
+            // 邮件发送失败时，清除已存入的验证码，避免用户收到过期验证码后无法重新获取
+            cache.evict(cacheKey);
+            log.error("验证码邮件发送失败，已清除缓存 -> email={}", email, e);
             throw new VerificationCodeSendFailedException();
         }
+
+        // ====== 第四步：返回生成的验证码 ======
+        return code;
     }
 }

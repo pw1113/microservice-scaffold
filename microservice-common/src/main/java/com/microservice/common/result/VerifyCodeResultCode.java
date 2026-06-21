@@ -14,7 +14,8 @@ public enum VerifyCodeResultCode implements IResultCode {
 
     VERIFICATION_CODE_ERROR(3001, "验证码错误"),
     VERIFICATION_CODE_EXPIRED(3002, "验证码已过期"),
-    VERIFICATION_CODE_SEND_FAILED(3003, "验证码发送失败");
+    VERIFICATION_CODE_SEND_FAILED(3003, "验证码发送失败"),
+    VERIFICATION_CODE_COOLDOWN(3004, "验证码已发送，请5分钟后再试");
 
     /** 状态码 */
     private final Integer code;
