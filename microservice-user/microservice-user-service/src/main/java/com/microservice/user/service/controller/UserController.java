@@ -57,9 +57,10 @@ public class UserController {
      */
     @GetMapping("/username/{username}")
     @Operation(summary = "根据用户名查询用户", description = "根据用户名精确查询用户信息。")
-    public Result<Void> getUserByUsername(@PathVariable @Parameter(description = "用户名") String username) {
+    public Result<UserVO> getUserByUsername(@PathVariable @Parameter(description = "用户名") String username) {
         log.info("收到查询用户请求 -> username={}", username);
-        return Result.success();
+        UserVO userVO = userService.getUserByUsername(username);
+        return Result.success(userVO);
     }
 
     /**
@@ -67,9 +68,10 @@ public class UserController {
      */
     @PostMapping("/batch")
     @Operation(summary = "根据ID集合批量查询用户", description = "传入用户ID列表，批量查询用户信息。")
-    public Result<Void> getUserByIds(@RequestBody List<Long> ids) {
+    public Result<List<UserVO>> getUsersByIds(@RequestBody List<Long> ids) {
         log.info("收到批量查询用户请求 -> ids={}", ids);
-        return Result.success();
+        List<UserVO> userVOs = userService.getUsersByIds(ids);
+        return Result.success(userVOs);
     }
 
     /**
