@@ -1,5 +1,6 @@
 package com.microservice.user.service.domain.dto;
 
+import com.microservice.user.service.enums.UserEnums;
 import lombok.Data;
 
 /**
@@ -10,6 +11,6 @@ public class UserQueryDTO {
     private String username;
     private String email;
     private String phone;
-    private Integer roleType;
-    private Integer status;
+    private UserEnums.RoleType roleType;
+    private UserEnums.Status status;
 }

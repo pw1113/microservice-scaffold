@@ -1,7 +1,6 @@
-// UserCreateDTO.java
 package com.microservice.user.service.domain.dto;
 
-
+import com.microservice.user.service.enums.UserEnums;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -27,7 +26,6 @@ public class UserCreateDTO {
     private String qq;
     private String wechat;
     private String avatar;
-    private Integer gender;              // 1-男, 2-女
+    private UserEnums.Gender gender;
     private Integer age;
-
 }

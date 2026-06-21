@@ -2,6 +2,7 @@ package com.microservice.user.service.domain.po;
 
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import com.microservice.user.service.enums.UserEnums;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -13,7 +14,7 @@ public class UserProfilePO {
     private String lastLoginIp;
     private LocalDateTime lastLoginTime;
     private Integer loginCount;
-    private Integer onlineStatus;       // 0-离线, 1-在线
+    private UserEnums.OnlineStatus onlineStatus;
     private Integer tokenVersion;
     private LocalDateTime pwdResetTime;
 }

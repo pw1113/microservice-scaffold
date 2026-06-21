@@ -1,6 +1,6 @@
-// UserAuthDTO.java
 package com.microservice.user.service.domain.dto;
 
+import com.microservice.user.service.enums.UserEnums;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -9,12 +9,11 @@ public class UserAuthDTO {
     private Long userId;
     private String username;
     private String email;
-    private Integer roleType;
-    private Integer status;
-    // profile 相关
+    private UserEnums.RoleType roleType;
+    private UserEnums.Status status;
     private String lastLoginIp;
     private LocalDateTime lastLoginTime;
-    private Integer onlineStatus;
+    private UserEnums.OnlineStatus onlineStatus;
     private Integer tokenVersion;
     private LocalDateTime pwdResetTime;
 }
