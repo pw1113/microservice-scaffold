@@ -2,6 +2,7 @@ package com.microservice.user.service.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.microservice.common.enums.VerifyCodeType;
+import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
 import com.microservice.user.service.domain.vo.UserVO;
@@ -59,6 +60,16 @@ public interface IUserService extends IService<UserPO> {
      * @param dto 用户更新DTO
      */
     void updateUser(UserUpdateDTO dto);
+
+    /**
+     * 注册新用户
+     * <p>
+     * 完整注册流程：验证邮箱验证码 → 校验用户名/邮箱唯一性 → 密码 BCrypt 加密 → 写入数据库 → 清除已使用的验证码。
+     * </p>
+     *
+     * @param dto 用户注册信息（包含用户名、密码、邮箱、验证码等）
+     */
+    void register(UserCreateDTO dto);
 
     /**
      * 发送邮箱验证码

@@ -6,10 +6,15 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.microservice.common.config.CacheConfig;
 import com.microservice.common.constant.SecurityConstants;
 import com.microservice.common.enums.VerifyCodeType;
+import com.microservice.common.exception.user.UserAlreadyExistsException;
 import com.microservice.common.exception.user.UserNotFoundException;
+import com.microservice.common.exception.verifycode.VerificationCodeErrorException;
+import com.microservice.common.exception.verifycode.VerificationCodeExpiredException;
 import com.microservice.common.exception.verifycode.VerificationCodeSendFailedException;
 import com.microservice.common.util.EmailUtils;
+import com.microservice.common.util.EncryptUtils;
 import com.microservice.common.util.VerifyCodeUtils;
+import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
 import com.microservice.user.service.domain.vo.UserVO;
@@ -118,6 +123,67 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         updatePO.setDescription(dto.getDescription());
         this.updateById(updatePO);
         log.info("用户信息已更新 -> id={}", dto.getId());
+    }
+
+    @Override
+    public void register(UserCreateDTO dto) {
+        // ====== 第一步：验证邮箱验证码 ======
+        // 从 Redis 中获取注册验证码缓存，key 格式：verify_code::auth:register_verify_code:{email}
+        Cache cache = cacheManager.getCache(CacheConfig.CACHE_VERIFY_CODE);
+        if (cache == null) {
+            throw new IllegalStateException("验证码缓存未初始化，请检查 CacheConfig 配置");
+        }
+        String cacheKey = SecurityConstants.REDIS_KEY_REGISTER_VERIFY_CODE + dto.getEmail();
+        Cache.ValueWrapper wrapper = cache.get(cacheKey);
+
+        // 验证码已过期（Redis 中不存在，说明超过 5 分钟 TTL）
+        if (wrapper == null) {
+            log.warn("验证码已过期 -> email={}", dto.getEmail());
+            throw new VerificationCodeExpiredException();
+        }
+        // 验证码不匹配（用户输入的 code 与 Redis 中存储的不一致）
+        if (!dto.getCode().equals(wrapper.get())) {
+            log.warn("验证码错误 -> email={}, inputCode={}", dto.getEmail(), dto.getCode());
+            throw new VerificationCodeErrorException();
+        }
+
+        // ====== 第二步：校验用户名唯一性 ======
+        // 查询数据库中是否已存在相同用户名的用户（包含已逻辑删除的用户，防止注册后用户名被占用）
+        long usernameCount = this.count(new LambdaQueryWrapper<UserPO>()
+                .eq(UserPO::getUsername, dto.getUsername()));
+        if (usernameCount > 0) {
+            log.warn("用户名已存在 -> username={}", dto.getUsername());
+            throw new UserAlreadyExistsException("用户名已存在");
+        }
+
+        // ====== 第三步：校验邮箱唯一性 ======
+        long emailCount = this.count(new LambdaQueryWrapper<UserPO>()
+                .eq(UserPO::getEmail, dto.getEmail()));
+        if (emailCount > 0) {
+            log.warn("邮箱已被注册 -> email={}", dto.getEmail());
+            throw new UserAlreadyExistsException("邮箱已被注册");
+        }
+
+        // ====== 第四步：构建用户实体并写入数据库 ======
+        // 密码使用 BCrypt 加密存储，不可逆
+        UserPO user = new UserPO();
+        user.setUsername(dto.getUsername());
+        user.setPassword(EncryptUtils.encode(dto.getPassword()));
+        user.setEmail(dto.getEmail());
+        user.setPhone(dto.getPhone());
+        user.setQq(dto.getQq());
+        user.setWechat(dto.getWechat());
+        user.setAvatar(dto.getAvatar());
+        user.setGender(dto.getGender());
+        user.setAge(dto.getAge());
+        // roleType、status、deleted 字段使用 UserPO 中的默认值，无需手动设置
+        this.save(user);
+        log.info("用户注册成功 -> id={}, username={}", user.getId(), user.getUsername());
+
+        // ====== 第五步：清除已使用的验证码 ======
+        // 注册成功后立即从 Redis 中删除验证码，防止验证码被重复使用
+        cache.evict(cacheKey);
+        log.info("注册验证码已清除 -> email={}", dto.getEmail());
     }
 
     @Override
