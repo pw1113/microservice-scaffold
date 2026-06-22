@@ -111,16 +111,19 @@ public class UserController {
     /**
      * 发送邮箱验证码
      * <p>
-     * 同一邮箱在同一业务类型下，5分钟内不可重复获取验证码，重复请求将抛出异常。
+     * 同一邮箱在同一业务类型下，5分钟内不可重复获取，重复请求返回成功但提示已发送。
      * </p>
      */
     @PostMapping("/send-code")
     @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。同一邮箱同一业务类型下5分钟内不可重复获取。")
-    public Result<String> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email,
-                                         @RequestParam @Parameter(description = "验证码类型：LOGIN-登录，REGISTER-注册") VerifyCodeType type) {
+    public Result<Void> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email,
+                                       @RequestParam @Parameter(description = "验证码类型：LOGIN-登录，REGISTER-注册") VerifyCodeType type) {
         log.info("收到发送验证码请求 -> email={}, type={}", email, type);
         String code = userService.sendVerifyCode(email, type);
-        return Result.success(code);
+        if (code == null) {
+            return Result.success("验证码已发送，请5分钟后再试", null);
+        }
+        return Result.success("验证码已发送", null);
     }
 
     /**

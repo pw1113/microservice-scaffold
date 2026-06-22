@@ -7,7 +7,6 @@ import com.microservice.common.config.CacheConfig;
 import com.microservice.common.constant.SecurityConstants;
 import com.microservice.common.enums.VerifyCodeType;
 import com.microservice.common.exception.user.UserNotFoundException;
-import com.microservice.common.exception.verifycode.VerificationCodeCooldownException;
 import com.microservice.common.exception.verifycode.VerificationCodeSendFailedException;
 import com.microservice.common.util.EmailUtils;
 import com.microservice.common.util.VerifyCodeUtils;
@@ -138,11 +137,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         String cacheKey = keyPrefix + email;
 
         // ====== 第一步：检查该邮箱是否已存在未过期的验证码（防刷机制） ======
-        // 如果缓存命中，说明用户在 5 分钟内已请求过验证码，拒绝重复请求
+        // 如果缓存命中，说明用户在 5 分钟内已请求过验证码，返回 null 由上层处理
         Cache.ValueWrapper existingWrapper = cache.get(cacheKey);
         if (existingWrapper != null) {
-            log.warn("验证码冷却中，拒绝重复发送 -> email={}, type={}", email, type);
-            throw new VerificationCodeCooldownException();
+            log.info("验证码冷却中，跳过重复发送 -> email={}, type={}", email, type);
+            return null;
         }
 
         // ====== 第二步：生成 6 位随机验证码并存入缓存 ======
