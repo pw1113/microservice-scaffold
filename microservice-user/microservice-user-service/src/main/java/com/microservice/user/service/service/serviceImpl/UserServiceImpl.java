@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.microservice.common.config.CacheConfig;
 import com.microservice.common.constant.SecurityConstants;
+import com.microservice.common.enums.VerifyCodeType;
 import com.microservice.common.exception.user.UserNotFoundException;
 import com.microservice.common.exception.verifycode.VerificationCodeCooldownException;
 import com.microservice.common.exception.verifycode.VerificationCodeSendFailedException;
@@ -121,22 +122,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     }
 
     @Override
-    public String sendVerifyCode(String email) {
+    public String sendVerifyCode(String email, VerifyCodeType type) {
         // 获取验证码缓存实例（底层由 RedisCacheManager 管理，对应 Redis 中 "verify_code::" 前缀）
         Cache cache = cacheManager.getCache(CacheConfig.CACHE_VERIFY_CODE);
         if (cache == null) {
             throw new IllegalStateException("验证码缓存未初始化，请检查 CacheConfig 配置");
         }
 
-        // 构建缓存 Key：使用 Redis 业务前缀 + 邮箱，保证 key 的可读性和唯一性
-        // 实际 Redis key 格式：verify_code::auth:verify_code:{email}
-        String cacheKey = SecurityConstants.REDIS_KEY_VERIFY_CODE + email;
+        // 根据验证码业务类型选择对应的 Redis Key 前缀，保证登录/注册验证码互不干扰
+        // 实际 Redis key 格式：verify_code::auth:{login|register}_verify_code:{email}
+        String keyPrefix = switch (type) {
+            case LOGIN -> SecurityConstants.REDIS_KEY_LOGIN_VERIFY_CODE;
+            case REGISTER -> SecurityConstants.REDIS_KEY_REGISTER_VERIFY_CODE;
+        };
+        String cacheKey = keyPrefix + email;
 
         // ====== 第一步：检查该邮箱是否已存在未过期的验证码（防刷机制） ======
         // 如果缓存命中，说明用户在 5 分钟内已请求过验证码，拒绝重复请求
         Cache.ValueWrapper existingWrapper = cache.get(cacheKey);
         if (existingWrapper != null) {
-            log.warn("验证码冷却中，拒绝重复发送 -> email={}", email);
+            log.warn("验证码冷却中，拒绝重复发送 -> email={}, type={}", email, type);
             throw new VerificationCodeCooldownException();
         }
 
@@ -146,16 +151,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         // 将验证码存入 Spring Cache（底层写入 Redis），TTL 由 CacheConfig 统一配置（5 分钟）
         // put 操作是原子性的，缓存过期后自动清除，无需手动管理生命周期
         cache.put(cacheKey, code);
-        log.info("验证码已存入缓存 -> email={}, cacheKey={}", email, cacheKey);
+        log.info("验证码已存入缓存 -> email={}, type={}, cacheKey={}", email, type, cacheKey);
 
         // ====== 第三步：发送验证码邮件 ======
         try {
-            EmailUtils.sendVerifyCode(javaMailSender, mailFrom, email, code);
-            log.info("验证码邮件发送成功 -> email={}", email);
+            EmailUtils.sendVerifyCode(javaMailSender, mailFrom, email, code, type);
+            log.info("验证码邮件发送成功 -> email={}, type={}", email, type);
         } catch (Exception e) {
             // 邮件发送失败时，清除已存入的验证码，避免用户收到过期验证码后无法重新获取
             cache.evict(cacheKey);
-            log.error("验证码邮件发送失败，已清除缓存 -> email={}", email, e);
+            log.error("验证码邮件发送失败，已清除缓存 -> email={}, type={}", email, type, e);
             throw new VerificationCodeSendFailedException();
         }
 

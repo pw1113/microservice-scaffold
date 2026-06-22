@@ -17,8 +17,13 @@ public class UserCreateDTO {
     @Size(min = 6, max = 128)
     private String password;
 
+    @NotBlank(message = "邮箱不能为空")   // 注册时邮箱变为必填（因为要发验证码）
     @Email(message = "邮箱格式不正确")
     private String email;
+
+    @NotBlank(message = "验证码不能为空")
+    private String code;
+
 
     @Pattern(regexp = "^1[3-9]\\d{9}$", message = "手机号格式不正确")
     private String phone;

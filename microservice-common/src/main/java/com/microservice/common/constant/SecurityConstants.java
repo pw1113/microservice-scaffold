@@ -40,8 +40,14 @@ public class SecurityConstants {
 
     // ======================== Redis Key 前缀 ========================
 
-    /** 验证码 Key 前缀 */
+    /** 验证码 Key 前缀（旧，逐步废弃） */
     public static final String REDIS_KEY_VERIFY_CODE = "auth:verify_code:";
+
+    /** 登录验证码 Key 前缀 */
+    public static final String REDIS_KEY_LOGIN_VERIFY_CODE = "auth:login_verify_code:";
+
+    /** 注册验证码 Key 前缀 */
+    public static final String REDIS_KEY_REGISTER_VERIFY_CODE = "auth:register_verify_code:";
 
     /** Token 黑名单 Key 前缀 */
     public static final String REDIS_KEY_TOKEN_BLACKLIST = "auth:token_blacklist:";

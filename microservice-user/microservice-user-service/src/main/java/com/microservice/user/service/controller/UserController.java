@@ -1,6 +1,7 @@
 package com.microservice.user.service.controller;
 
 
+import com.microservice.common.enums.VerifyCodeType;
 import com.microservice.common.result.Result;
 import com.microservice.user.service.domain.dto.LoginDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
@@ -37,7 +38,7 @@ public class UserController {
     @PostMapping("/register")
     @Operation(summary = "注册新用户", description = "创建新用户账号，用户名和邮箱不可重复，密码将进行BCrypt加密存储。")
     public Result<Void> register(@RequestBody @Valid UserCreateDTO dto) {
-        log.info("收到注册请求 -> username={}, email={}, phone={}", dto.getUsername(), dto.getEmail(), dto.getPhone());
+        log.info("收到注册请求 -> UserCreateDTO={}", dto);
         return Result.success();
     }
 
@@ -110,14 +111,15 @@ public class UserController {
     /**
      * 发送邮箱验证码
      * <p>
-     * 同一邮箱在5分钟内不可重复获取验证码，重复请求将抛出异常。
+     * 同一邮箱在同一业务类型下，5分钟内不可重复获取验证码，重复请求将抛出异常。
      * </p>
      */
     @PostMapping("/send-code")
-    @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。同一邮箱5分钟内不可重复获取。")
-    public Result<String> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email) {
-        log.info("收到发送验证码请求 -> email={}", email);
-        String code = userService.sendVerifyCode(email);
+    @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。同一邮箱同一业务类型下5分钟内不可重复获取。")
+    public Result<String> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email,
+                                         @RequestParam @Parameter(description = "验证码类型：LOGIN-登录，REGISTER-注册") VerifyCodeType type) {
+        log.info("收到发送验证码请求 -> email={}, type={}", email, type);
+        String code = userService.sendVerifyCode(email, type);
         return Result.success(code);
     }
 
