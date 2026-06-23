@@ -30,15 +30,6 @@ spring:
             data-type: json
             rule-type: gw-flow
 
-  config:
-    import:
-      - nacos:shared-redis.yaml?refreshEnabled=true
-      - nacos:shared-jwt.yaml?refreshEnabled=true
-
-  autoconfigure:
-    exclude:
-      - com.baomidou.mybatisplus.autoconfigure.MybatisPlusAutoConfiguration
-
 server:
   port: ${GATEWAY_PORT:8080}
 
