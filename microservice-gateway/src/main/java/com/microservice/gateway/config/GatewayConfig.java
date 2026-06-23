@@ -23,22 +23,10 @@ public class GatewayConfig {
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
-                // Auth 服务路由
-                .route("microservice-auth", r -> r
-                        .path("/auth/**")
-                        .uri("lb://microservice-auth"))
                 // User 服务路由
                 .route("microservice-user", r -> r
                         .path("/user/**")
                         .uri("lb://microservice-user"))
-                // Admin 服务路由
-                .route("microservice-admin", r -> r
-                        .path("/admin/**")
-                        .uri("lb://microservice-admin"))
-                // Chat 服务路由
-                .route("microservice-chat", r -> r
-                        .path("/chat/**")
-                        .uri("lb://microservice-chat"))
                 .build();
     }
 
