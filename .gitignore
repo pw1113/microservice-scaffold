@@ -2,6 +2,9 @@
 .idea/
 .claude/
 
+# 前端页面代码
+microservice-frontend/
+
 # Build output
 target/
 
