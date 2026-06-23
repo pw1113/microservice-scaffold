@@ -45,7 +45,6 @@
         <hutool.version>5.8.36</hutool.version>
         <minio.version>8.5.17</minio.version>
         <springdoc.version>2.8.9</springdoc.version>
-        <spring-cloud-gateway.version>4.3.5</spring-cloud-gateway.version>
     </properties>
 
     <!-- ======================== 统一版本管理 ======================== -->
@@ -144,12 +143,6 @@
                 <version>${springdoc.version}</version>
             </dependency>
 
-            <!-- Spring Cloud Gateway（BOM 未管理版本，显式声明） -->
-            <dependency>
-                <groupId>org.springframework.cloud</groupId>
-                <artifactId>spring-cloud-starter-gateway</artifactId>
-                <version>${spring-cloud-gateway.version}</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
