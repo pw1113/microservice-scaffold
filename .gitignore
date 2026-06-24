@@ -2,9 +2,6 @@
 .idea/
 .claude/
 
-# 前端页面代码
-microservice-frontend/
-
 # Build output
 target/
 
@@ -33,3 +30,9 @@ logs/
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# 黑马商城模块
+/hm-gateway/
+/hm-common/
+# 前端页面代码
+/microservice-frontend/
