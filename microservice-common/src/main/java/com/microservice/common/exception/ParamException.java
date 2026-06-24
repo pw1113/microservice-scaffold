@@ -2,31 +2,24 @@ package com.microservice.common.exception;
 
 import com.microservice.common.result.HttpResultCode;
 import com.microservice.common.result.IResultCode;
-import lombok.Getter;
 
 /**
  * 参数异常
  *
  * @author microservice
  */
-@Getter
-public class ParamException extends RuntimeException {
-
-    private final Integer code;
+public class ParamException extends BusinessException {
 
     public ParamException(String message) {
-        super(message);
-        this.code = HttpResultCode.BAD_REQUEST.getCode();
+        super(HttpResultCode.BAD_REQUEST.getCode(), message);
     }
 
     public ParamException(Integer code, String message) {
-        super(message);
-        this.code = code;
+        super(code, message);
     }
 
     public ParamException(IResultCode resultCode) {
-        super(resultCode.getMessage());
-        this.code = resultCode.getCode();
+        super(resultCode);
     }
 
 }
