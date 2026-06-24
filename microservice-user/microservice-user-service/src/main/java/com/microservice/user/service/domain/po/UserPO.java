@@ -22,25 +22,25 @@ public class UserPO {
     private String password;
     /** 邮箱 */
     private String email;
-    /** 手机号 */
+    /** 手机号（可选） */
     private String phone;
-    /** QQ号 */
+    /** QQ号（可选） */
     private String qq;
-    /** 微信号 */
+    /** 微信号（可选） */
     private String wechat;
-    /** 头像URL */
-    private String avatar;
-    /** 性别 */
-    private UserEnums.Gender gender;
-    /** 年龄 */
+    /** 头像URL（默认头像） */
+    private String avatar = "https://upload-bbs.miyoushe.com/upload/2022/07/03/252664962/acf379fcba31954ad36f38688bfeab85_6753007254972183423.jpg";
+    /** 性别（默认未知） */
+    private UserEnums.Gender gender = UserEnums.Gender.UNKNOWN;
+    /** 年龄（可选） */
     private Integer age;
-    /** 个人描述（JSON字符串） */
+    /** 个人描述（可选） */
     private String description;
-    /** 角色类型 */
-    private UserEnums.RoleType roleType;
-    /** 账号状态 */
-    private UserEnums.Status status;
-    /** 删除标志 */
+    /** 角色类型（默认普通用户） */
+    private UserEnums.RoleType roleType = UserEnums.RoleType.USER;
+    /** 账号状态（默认正常） */
+    private UserEnums.Status status = UserEnums.Status.NORMAL;
+    /** 删除标志（默认未删除） */
     private UserEnums.Deleted deleted = UserEnums.Deleted.NOT_DELETED;
     /** 创建时间 */
     private LocalDateTime createTime;

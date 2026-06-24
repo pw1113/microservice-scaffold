@@ -66,10 +66,11 @@ public interface IUserService extends IService<UserPO> {
     /**
      * 注册新用户
      * <p>
-     * 完整注册流程：验证邮箱验证码 → 校验用户名/邮箱唯一性 → 密码 BCrypt 加密 → 写入数据库 → 清除已使用的验证码。
+     * 完整注册流程：验证邮箱验证码 → 校验用户名唯一性 → 密码 BCrypt 加密 → 写入数据库 → 清除已使用的验证码。
+     * 注意：邮箱唯一性已在发送注册验证码时校验，此处不再重复校验。
      * </p>
      *
-     * @param dto 用户注册信息（包含用户名、密码、邮箱、验证码等）
+     * @param dto 用户注册信息（包含用户名、密码、邮箱、验证码）
      */
     void register(UserCreateDTO dto);
 

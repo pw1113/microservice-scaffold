@@ -38,7 +38,7 @@ public class UserController {
      * 注册新用户
      */
     @PostMapping("/register")
-    @Operation(summary = "注册新用户", description = "创建新用户账号，需先通过 /send-code 获取邮箱验证码。用户名和邮箱不可重复，密码将进行BCrypt加密存储。")
+    @Operation(summary = "注册新用户", description = "创建新用户账号，需先通过 /send-code 获取注册验证码。用户名不可重复，邮箱唯一性已在发送验证码时校验。")
     public Result<Void> register(@RequestBody @Valid UserCreateDTO dto) {
         log.info("收到注册请求 -> username={}, email={}", dto.getUsername(), dto.getEmail());
         userService.register(dto);

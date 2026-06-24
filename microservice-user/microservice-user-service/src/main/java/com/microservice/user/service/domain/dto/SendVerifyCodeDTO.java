@@ -7,6 +7,9 @@ import lombok.Data;
 
 /**
  * 发送验证码请求参数
+ * <p>
+ * 注册验证码会额外校验邮箱是否已注册，已注册的邮箱无法再次注册。
+ * </p>
  */
 @Data
 public class SendVerifyCodeDTO {

@@ -170,7 +170,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         }
 
         // ====== 第二步：校验用户名唯一性 ======
-        // 查询数据库中是否已存在相同用户名的用户（包含已逻辑删除的用户，防止注册后用户名被占用）
+        // 查询数据库中是否已存在相同用户名的用户
         long usernameCount = this.count(new LambdaQueryWrapper<UserPO>()
                 .eq(UserPO::getUsername, dto.getUsername()));
         if (usernameCount > 0) {
@@ -178,31 +178,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
             throw new UserAlreadyExistsException("用户名已存在");
         }
 
-        // ====== 第三步：校验邮箱唯一性 ======
-        long emailCount = this.count(new LambdaQueryWrapper<UserPO>()
-                .eq(UserPO::getEmail, dto.getEmail()));
-        if (emailCount > 0) {
-            log.warn("邮箱已被注册 -> email={}", dto.getEmail());
-            throw new UserAlreadyExistsException("邮箱已被注册");
-        }
-
-        // ====== 第四步：构建用户实体并写入数据库 ======
+        // ====== 第三步：构建用户实体并写入数据库 ======
         // 密码使用 BCrypt 加密存储，不可逆
         UserPO user = new UserPO();
         user.setUsername(dto.getUsername());
         user.setPassword(EncryptUtils.encode(dto.getPassword()));
         user.setEmail(dto.getEmail());
-        user.setPhone(dto.getPhone());
-        user.setQq(dto.getQq());
-        user.setWechat(dto.getWechat());
-        user.setAvatar(dto.getAvatar());
-        user.setGender(dto.getGender());
-        user.setAge(dto.getAge());
-        // roleType、status、deleted 字段使用 UserPO 中的默认值，无需手动设置
+        // 其他字段使用数据库默认值：avatar、gender、roleType、status、deleted
         this.save(user);
         log.info("用户注册成功 -> id={}, username={}", user.getId(), user.getUsername());
 
-        // ====== 第五步：清除已使用的验证码 ======
+        // ====== 第四步：清除已使用的验证码 ======
         // 注册成功后立即从 Redis 中删除验证码，防止验证码被重复使用
         cache.evict(cacheKey);
         log.info("注册验证码已清除 -> email={}", dto.getEmail());
@@ -219,6 +205,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         String email = dto.getEmail();
         VerifyCodeType type = dto.getType();
 
+        // ====== 注册验证码：检查邮箱是否已注册 ======
+        if (type == VerifyCodeType.REGISTER) {
+            long emailCount = this.count(new LambdaQueryWrapper<UserPO>()
+                    .eq(UserPO::getEmail, email));
+            if (emailCount > 0) {
+                log.warn("邮箱已被注册，拒绝发送注册验证码 -> email={}", email);
+                throw new UserAlreadyExistsException("该邮箱已注册，无法再次注册");
+            }
+        }
+
         // 根据验证码业务类型选择对应的 Redis Key 前缀，保证登录/注册验证码互不干扰
         // 实际 Redis key 格式：verify_code::auth:{login|register}_verify_code:{email}
         String keyPrefix = switch (type) {
@@ -227,7 +223,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         };
         String cacheKey = keyPrefix + email;
 
-        // ====== 第一步：检查该邮箱是否已存在未过期的验证码（防刷机制） ======
+        // ====== 检查该邮箱是否已存在未过期的验证码（防刷机制） ======
         // 如果缓存命中，说明用户在 5 分钟内已请求过验证码，返回 null 由上层处理
         Cache.ValueWrapper existingWrapper = cache.get(cacheKey);
         if (existingWrapper != null) {
@@ -235,7 +231,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
             return null;
         }
 
-        // ====== 第二步：生成 6 位随机验证码并存入缓存 ======
+        // ====== 生成 6 位随机验证码并存入缓存 ======
         // 使用 SecureRandom 生成验证码，确保随机性安全
         String code = VerifyCodeUtils.generateCode();
         // 将验证码存入 Spring Cache（底层写入 Redis），TTL 由 CacheConfig 统一配置（5 分钟）
@@ -243,7 +239,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         cache.put(cacheKey, code);
         log.info("验证码已存入缓存 -> email={}, type={}, cacheKey={}", email, type, cacheKey);
 
-        // ====== 第三步：发送验证码邮件 ======
+        // ====== 发送验证码邮件 ======
         try {
             EmailUtils.sendVerifyCode(javaMailSender, mailFrom, email, code, type);
             log.info("验证码邮件发送成功 -> email={}, type={}", email, type);
@@ -254,7 +250,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
             throw new VerificationCodeSendFailedException();
         }
 
-        // ====== 第四步：返回生成的验证码 ======
+        // ====== 返回生成的验证码 ======
         return code;
     }
 
