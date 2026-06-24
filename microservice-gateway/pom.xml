@@ -42,10 +42,10 @@
         </dependency>
 
 
-        <!-- Spring Boot Data Redis -->
+        <!-- Spring Boot Data Redis Reactive (WebFlux 兼容) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
+            <artifactId>spring-boot-starter-data-redis-reactive</artifactId>
         </dependency>
 
         <!-- Lombok -->

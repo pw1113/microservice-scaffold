@@ -62,10 +62,10 @@ public class SecurityConstants {
 
     /** 无需认证的路径 */
     public static final String[] WHITE_LIST = {
-            "/auth/login",
-            "/auth/register",
-            "/auth/refresh",
-            "/auth/send-code",
+            "/user/login",
+            "/user/register",
+            "/user/refresh",
+            "/user/send-code",
             "/doc.html",
             "/swagger-ui/**",
             "/v3/api-docs/**",
