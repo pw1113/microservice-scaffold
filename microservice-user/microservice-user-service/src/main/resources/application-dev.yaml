@@ -1,20 +1,32 @@
-# 开发环境变量
-DB_HOST: localhost
-DB_PORT: 3307
-DB_NAME: microservice_db
-DB_USERNAME: root
-DB_PASSWORD: 123123
+# 开发环境配置
 
-REDIS_HOST: localhost
-REDIS_PORT: 6378
-REDIS_PASSWORD: 123123
-REDIS_DATABASE: 6
+# 数据源
+datasource:
+  host: localhost
+  port: 3307
+  database: microservice_db
+  username: root
+  password: 123123
 
-SERVER_PORT: 8081
-LOG_LEVEL: INFO
+# Redis
+redis:
+  host: localhost
+  port: 6378
+  password: 123123
+  database: 6
 
-MAIL_HOST: smtp.qq.com
-MAIL_PORT: 587
-MAIL_USERNAME: 3306056415@qq.com
-MAIL_PASSWORD: aapsainkzzmhdaee
-MAIL_FROM: 3306056415@qq.com
+# 服务器
+server:
+  port: 8081
+
+# 日志
+log:
+  level: INFO
+
+# 邮件
+mail:
+  host: smtp.qq.com
+  port: 587
+  username: 3306056415@qq.com
+  password: aapsainkzzmhdaee
+  from: 3306056415@qq.com
