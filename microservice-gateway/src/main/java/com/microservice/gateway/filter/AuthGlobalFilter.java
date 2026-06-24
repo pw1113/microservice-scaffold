@@ -57,11 +57,11 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
-//        boolean flag=true;
-//        if( flag){
-//            log.info("[Gateway] 暂时用于测试，路径: {} 直接放行", path);
-//            return chain.filter(exchange);
-//        }
+        boolean flag=true;
+        if( flag){
+            log.info("[Gateway] 暂时用于测试，路径: {} 直接放行", path);
+            return chain.filter(exchange);
+        }
 
 
 

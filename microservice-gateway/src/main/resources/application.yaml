@@ -33,10 +33,18 @@ spring:
               predicates: # 匹配规则，多个路径匹配规则用逗号隔开，分行配置表示and关系，逗号表示or关系
                 - Path=/user/**
 
+    # 配置网关
+#    gateway:
+#      routes: # ✅ 修正路由配置格式
+#        - id: microservice-user-service # 路由id，即配置的服务名
+#          uri: lb://microservice-user-service # lb表示负载均衡
+#          predicates: # 匹配规则，多个路径匹配规则用逗号隔开，分行配置表示and关系，逗号表示or关系
+#            - Path=/user/**
+
 
 # 服务器配置
 server:
-  port: ${server.port}
+  port: 8080
 
 # 日志配置
 logging:
