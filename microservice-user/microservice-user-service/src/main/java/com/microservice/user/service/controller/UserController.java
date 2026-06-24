@@ -1,9 +1,9 @@
 package com.microservice.user.service.controller;
 
 
-import com.microservice.common.enums.VerifyCodeType;
 import com.microservice.common.result.Result;
 import com.microservice.user.service.domain.dto.LoginDTO;
+import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.vo.UserVO;
@@ -117,10 +117,9 @@ public class UserController {
      */
     @PostMapping("/send-code")
     @Operation(summary = "发送邮箱验证码", description = "向指定邮箱发送6位数字验证码，有效期5分钟。同一邮箱同一业务类型下5分钟内不可重复获取。")
-    public Result<Void> sendVerifyCode(@RequestParam @Parameter(description = "目标邮箱") String email,
-                                       @RequestParam @Parameter(description = "验证码类型：LOGIN-登录，REGISTER-注册") VerifyCodeType type) {
-        log.info("收到发送验证码请求 -> email={}, type={}", email, type);
-        String code = userService.sendVerifyCode(email, type);
+    public Result<Void> sendVerifyCode(@RequestBody @Valid SendVerifyCodeDTO dto) {
+        log.info("收到发送验证码请求 -> email={}, type={}", dto.getEmail(), dto.getType());
+        String code = userService.sendVerifyCode(dto);
         if (code == null) {
             return Result.success("验证码已发送，请5分钟后再试", null);
         }

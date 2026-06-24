@@ -14,6 +14,7 @@ import com.microservice.common.exception.verifycode.VerificationCodeSendFailedEx
 import com.microservice.common.util.EmailUtils;
 import com.microservice.common.util.EncryptUtils;
 import com.microservice.common.util.VerifyCodeUtils;
+import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
@@ -187,12 +188,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
     }
 
     @Override
-    public String sendVerifyCode(String email, VerifyCodeType type) {
+    public String sendVerifyCode(SendVerifyCodeDTO dto) {
         // 获取验证码缓存实例（底层由 RedisCacheManager 管理，对应 Redis 中 "verify_code::" 前缀）
         Cache cache = cacheManager.getCache(CacheConfig.CACHE_VERIFY_CODE);
         if (cache == null) {
             throw new IllegalStateException("验证码缓存未初始化，请检查 CacheConfig 配置");
         }
+
+        String email = dto.getEmail();
+        VerifyCodeType type = dto.getType();
 
         // 根据验证码业务类型选择对应的 Redis Key 前缀，保证登录/注册验证码互不干扰
         // 实际 Redis key 格式：verify_code::auth:{login|register}_verify_code:{email}

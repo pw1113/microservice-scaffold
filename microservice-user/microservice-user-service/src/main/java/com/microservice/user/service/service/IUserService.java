@@ -1,7 +1,7 @@
 package com.microservice.user.service.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.microservice.common.enums.VerifyCodeType;
+import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
@@ -78,9 +78,8 @@ public interface IUserService extends IService<UserPO> {
      * 同一邮箱在同一业务类型下，验证码有效期内不可重复获取。
      * </p>
      *
-     * @param email 目标邮箱
-     * @param type  验证码业务类型（登录/注册），不同类型的验证码使用独立的 Redis Key，互不干扰
+     * @param dto 包含目标邮箱和验证码业务类型（登录/注册）
      * @return 生成的6位验证码
      */
-    String sendVerifyCode(String email, VerifyCodeType type);
+    String sendVerifyCode(SendVerifyCodeDTO dto);
 }
