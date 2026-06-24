@@ -67,6 +67,12 @@ app:
   mail:
     from: ${mail.from}
 
+# JWT 配置（需与网关保持一致）
+jwt:
+  secret: bWljcm9zZXJ2aWNlLXNlY3JldC1rZXktZm9yLWp3dC1zaWduaW5nLTIwMjQ= #密钥
+  access-token-ttl: 15m # 15 分钟
+  refresh-token-ttl: 3d # 3 天
+
 # 服务器配置
 server:
   port: ${server.port}

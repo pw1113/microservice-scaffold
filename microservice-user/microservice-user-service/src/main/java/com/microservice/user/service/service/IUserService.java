@@ -1,10 +1,12 @@
 package com.microservice.user.service.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.microservice.user.service.domain.dto.LoginDTO;
 import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
+import com.microservice.user.service.domain.vo.LoginVO;
 import com.microservice.user.service.domain.vo.UserVO;
 
 import java.util.List;
@@ -82,4 +84,17 @@ public interface IUserService extends IService<UserPO> {
      * @return 生成的6位验证码
      */
     String sendVerifyCode(SendVerifyCodeDTO dto);
+
+    /**
+     * 用户登录
+     * <p>
+     * 完整登录流程：验证登录失败次数限制 → 验证邮箱验证码 → 验证密码（BCrypt） → 检查账号状态 →
+     * 生成 accessToken + refreshToken → 持久化 refreshToken → 更新登录信息 → 清除失败计数。
+     * </p>
+     *
+     * @param loginDTO 登录请求参数（用户名、密码、邮箱、验证码、设备标识）
+     * @param clientIp 客户端IP，用于记录登录信息
+     * @return 登录响应结果（userId、username、accessToken、refreshToken、expiresIn）
+     */
+    LoginVO login(LoginDTO loginDTO, String clientIp);
 }

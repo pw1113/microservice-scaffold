@@ -6,11 +6,13 @@ import com.microservice.user.service.domain.dto.LoginDTO;
 import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
+import com.microservice.user.service.domain.vo.LoginVO;
 import com.microservice.user.service.domain.vo.UserVO;
 import com.microservice.user.service.service.IUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,7 +42,7 @@ public class UserController {
     public Result<Void> register(@RequestBody @Valid UserCreateDTO dto) {
         log.info("收到注册请求 -> username={}, email={}", dto.getUsername(), dto.getEmail());
         userService.register(dto);
-        return Result.success();
+        return Result.success("新用户注册成功", null);
     }
 
     /**
@@ -95,7 +97,7 @@ public class UserController {
     public Result<Void> deleteUsersByIds(@RequestBody List<Long> ids) {
         log.info("收到批量删除用户请求 -> ids={}", ids);
         userService.deleteUsersByIds(ids);
-        return Result.success();
+        return Result.success("删除用户成功",null);
     }
 
     /**
@@ -136,12 +138,39 @@ public class UserController {
                     "系统向邮箱发送验证码，用户收到验证码后将用户名、密码、邮箱、验证码一并提交完成登录。" +
                     "deviceId 为可选参数，用于多设备管理。"
     )
-    public Result<Void> login(@RequestBody @Valid LoginDTO loginDTO) {
+    public Result<LoginVO> login(@RequestBody @Valid LoginDTO loginDTO, HttpServletRequest request) {
         log.info("收到登录请求 -> username={}, email={}, code={}, deviceId={}",
                 loginDTO.getUsername(),
                 loginDTO.getEmail(),
                 loginDTO.getCode(),
                 loginDTO.getDeviceId());
-        return Result.success();
+        // 获取客户端 IP
+        String clientIp = getClientIp(request);
+        LoginVO loginVO = userService.login(loginDTO, clientIp);
+        return Result.success(loginVO);
+    }
+
+    /**
+     * 获取客户端真实 IP
+     */
+    private String getClientIp(HttpServletRequest request) {
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getHeader("X-Real-IP");
+        }
+        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
+            ip = request.getRemoteAddr();
+        }
+        // 多个代理时取第一个
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
+        return ip;
     }
 }

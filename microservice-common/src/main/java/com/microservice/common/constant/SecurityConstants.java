@@ -58,6 +58,17 @@ public class SecurityConstants {
     /** Token 版本号 Key 前缀 */
     public static final String REDIS_KEY_TOKEN_VERSION = "auth:token_version:";
 
+    /** 登录失败计数 Key 前缀 */
+    public static final String REDIS_KEY_LOGIN_FAIL_COUNT = "auth:login_fail:";
+
+    // ======================== 登录限制配置 ========================
+
+    /** 最大登录失败次数 */
+    public static final int LOGIN_FAIL_MAX_COUNT = 5;
+
+    /** 登录失败锁定时间（秒） */
+    public static final int LOGIN_FAIL_LOCK_SECONDS = 15 * 60;
+
     // ======================== 白名单路径 ========================
 
     /** 无需认证的路径 */

@@ -2,11 +2,13 @@ package com.microservice.common.handler;
 
 import com.microservice.common.exception.BusinessException;
 import com.microservice.common.exception.UnauthorizedException;
+import com.microservice.common.exception.auth.LoginFailLimitExceededException;
 import com.microservice.common.exception.token.RefreshTokenExpiredException;
 import com.microservice.common.exception.token.RefreshTokenInvalidException;
 import com.microservice.common.exception.token.TokenBlacklistedException;
 import com.microservice.common.exception.token.TokenExpiredException;
 import com.microservice.common.exception.token.TokenInvalidException;
+import com.microservice.common.exception.user.UserNotFoundException;
 import com.microservice.common.exception.user.UserNotLoginException;
 import com.microservice.common.exception.user.UserPasswordErrorException;
 import com.microservice.common.exception.verifycode.VerificationCodeCooldownException;
@@ -41,6 +43,7 @@ public class AuthExceptionHandler {
             RefreshTokenExpiredException.class,
             RefreshTokenInvalidException.class,
             UserNotLoginException.class,
+            UserNotFoundException.class,
             UserPasswordErrorException.class,
             UnauthorizedException.class
     })
@@ -64,12 +67,16 @@ public class AuthExceptionHandler {
         return Result.fail(e.getCode(), e.getMessage());
     }
 
-    // ======================== 429 验证码冷却 ========================
+    // ======================== 429 验证码冷却 / 登录失败超限 ========================
 
-    @ExceptionHandler(VerificationCodeCooldownException.class)
+    @ExceptionHandler({
+            VerificationCodeCooldownException.class,
+            LoginFailLimitExceededException.class
+    })
     @ResponseStatus(HttpStatus.TOO_MANY_REQUESTS)
-    public Result<Void> handleCooldown(VerificationCodeCooldownException e, HttpServletRequest request) {
-        log.warn("[VerificationCodeCooldown] path={}, message={}", request.getRequestURI(), e.getMessage());
+    public Result<Void> handleTooManyRequests(BusinessException e, HttpServletRequest request) {
+        log.warn("[{}] path={}, code={}, message={}", e.getClass().getSimpleName(),
+                request.getRequestURI(), e.getCode(), e.getMessage());
         return Result.fail(e.getCode(), e.getMessage());
     }
 

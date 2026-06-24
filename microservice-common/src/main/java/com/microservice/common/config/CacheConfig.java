@@ -36,8 +36,14 @@ public class CacheConfig {
     /** 验证码缓存名称，对应 Redis 中的缓存前缀 */
     public static final String CACHE_VERIFY_CODE = "verify_code";
 
+    /** 登录失败计数缓存名称，对应 Redis 中的缓存前缀 */
+    public static final String CACHE_LOGIN_FAIL_COUNT = "login_fail_count";
+
     /** 验证码缓存默认过期时间（分钟），与业务层验证码有效期保持一致 */
     private static final long VERIFY_CODE_EXPIRE_MINUTES = 5;
+
+    /** 登录失败计数缓存过期时间（分钟），与登录失败锁定时间保持一致 */
+    private static final long LOGIN_FAIL_COUNT_EXPIRE_MINUTES = 15;
 
     /**
      * 配置 Redis 缓存管理器
@@ -69,6 +75,9 @@ public class CacheConfig {
         Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
         // 验证码缓存：5 分钟过期，与验证码有效期一致
         cacheConfigurations.put(CACHE_VERIFY_CODE, defaultConfig);
+        // 登录失败计数缓存：15 分钟过期，与登录失败锁定时间一致
+        cacheConfigurations.put(CACHE_LOGIN_FAIL_COUNT,
+                defaultConfig.entryTtl(Duration.ofMinutes(LOGIN_FAIL_COUNT_EXPIRE_MINUTES)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(defaultConfig)

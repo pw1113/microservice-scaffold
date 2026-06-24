@@ -93,11 +93,12 @@ public final class UserEnums {
 
     @Getter
     @AllArgsConstructor
-    @Schema(description = "用户状态：1-正常，2-冻结")
+    @Schema(description = "用户状态：1-正常，2-冻结，3-禁用")
     public enum Status {
 
         NORMAL(1, "正常"),
-        FROZEN(2, "冻结");
+        FROZEN(2, "冻结"),
+        DISABLED(3, "禁用");
 
         @EnumValue
         @JsonValue

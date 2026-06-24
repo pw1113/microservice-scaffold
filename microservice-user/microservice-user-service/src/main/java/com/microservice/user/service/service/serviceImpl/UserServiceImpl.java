@@ -6,20 +6,33 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.microservice.common.config.CacheConfig;
 import com.microservice.common.constant.SecurityConstants;
 import com.microservice.common.enums.VerifyCodeType;
+import com.microservice.common.exception.auth.LoginFailLimitExceededException;
+import com.microservice.common.exception.user.UserAccountDisabledException;
+import com.microservice.common.exception.user.UserAccountFrozenException;
 import com.microservice.common.exception.user.UserAlreadyExistsException;
 import com.microservice.common.exception.user.UserNotFoundException;
+import com.microservice.common.exception.user.UserPasswordErrorException;
 import com.microservice.common.exception.verifycode.VerificationCodeErrorException;
 import com.microservice.common.exception.verifycode.VerificationCodeExpiredException;
 import com.microservice.common.exception.verifycode.VerificationCodeSendFailedException;
 import com.microservice.common.util.EmailUtils;
 import com.microservice.common.util.EncryptUtils;
+import com.microservice.common.util.JwtUtils;
 import com.microservice.common.util.VerifyCodeUtils;
+import com.microservice.user.service.config.JwtProperties;
+import com.microservice.user.service.domain.dto.LoginDTO;
 import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
 import com.microservice.user.service.domain.po.UserPO;
+import com.microservice.user.service.domain.po.UserProfilePO;
+import com.microservice.user.service.domain.po.UserRefreshTokenPO;
+import com.microservice.user.service.domain.vo.LoginVO;
 import com.microservice.user.service.domain.vo.UserVO;
+import com.microservice.user.service.enums.UserEnums;
 import com.microservice.user.service.mapper.UserMapper;
+import com.microservice.user.service.mapper.UserProfileMapper;
+import com.microservice.user.service.mapper.UserRefreshTokenMapper;
 import com.microservice.user.service.service.IUserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,8 +41,12 @@ import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -44,6 +61,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
 
     private final CacheManager cacheManager;
     private final JavaMailSender javaMailSender;
+    private final JwtProperties jwtProperties;
+    private final UserMapper userMapper;
+    private final UserProfileMapper userProfileMapper;
+    private final UserRefreshTokenMapper userRefreshTokenMapper;
 
     @Value("${app.mail.from}")
     private String mailFrom;
@@ -235,5 +256,154 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
 
         // ====== 第四步：返回生成的验证码 ======
         return code;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public LoginVO login(LoginDTO loginDTO, String clientIp) {
+        String username = loginDTO.getUsername();
+        String password = loginDTO.getPassword();
+        String email = loginDTO.getEmail();
+        String code = loginDTO.getCode();
+        String deviceId = loginDTO.getDeviceId();
+
+        // ====== 第一步：检查登录失败次数限制 ======
+        // Redis key 格式：auth:login_fail:{username}
+        Cache failCountCache = cacheManager.getCache(CacheConfig.CACHE_LOGIN_FAIL_COUNT);
+        if (failCountCache == null) {
+            throw new IllegalStateException("缓存未初始化，请检查 CacheConfig 配置");
+        }
+        String failCountKey = SecurityConstants.REDIS_KEY_LOGIN_FAIL_COUNT + username;
+        Cache.ValueWrapper failCountWrapper = failCountCache.get(failCountKey);
+        if (failCountWrapper != null) {
+            int failCount = Integer.parseInt(failCountWrapper.get().toString());
+            if (failCount >= SecurityConstants.LOGIN_FAIL_MAX_COUNT) {
+                log.warn("登录失败次数超限 -> username={}, failCount={}", username, failCount);
+                throw new LoginFailLimitExceededException();
+            }
+        }
+
+        // ====== 第二步：验证邮箱验证码 ======
+        // 从 Redis 中获取登录验证码缓存，key 格式：verify_code::auth:login_verify_code:{email}
+        Cache verifyCodeCache = cacheManager.getCache(CacheConfig.CACHE_VERIFY_CODE);
+        String cacheKey = SecurityConstants.REDIS_KEY_LOGIN_VERIFY_CODE + email;
+        Cache.ValueWrapper wrapper = verifyCodeCache.get(cacheKey);
+
+        // 验证码已过期（Redis 中不存在，说明超过 5 分钟 TTL）
+        if (wrapper == null) {
+            log.warn("验证码已过期 -> email={}", email);
+            throw new VerificationCodeExpiredException();
+        }
+        // 验证码不匹配（用户输入的 code 与 Redis 中存储的不一致）
+        if (!code.equals(wrapper.get())) {
+            log.warn("验证码错误 -> email={}, inputCode={}", email, code);
+            throw new VerificationCodeErrorException();
+        }
+
+        // ====== 第三步：查询用户 ======
+        LambdaQueryWrapper<UserPO> wrapper1 = new LambdaQueryWrapper<>();
+        wrapper1.eq(UserPO::getUsername, username);
+        UserPO user = userMapper.selectOne(wrapper1);
+        if (user == null) {
+            log.warn("用户不存在 -> username={}", username);
+            incrementFailCount(failCountKey, failCountCache);
+            throw new UserNotFoundException();
+        }
+
+        // ====== 第四步：验证密码 ======
+        if (!EncryptUtils.matches(password, user.getPassword())) {
+            log.warn("密码错误 -> username={}", username);
+            incrementFailCount(failCountKey, failCountCache);
+            throw new UserPasswordErrorException();
+        }
+
+        // ====== 第五步：检查账号状态 ======
+        if (user.getStatus() == UserEnums.Status.FROZEN) {
+            log.warn("账号已被冻结 -> username={}", username);
+            throw new UserAccountFrozenException();
+        }
+        if (user.getStatus() == UserEnums.Status.DISABLED) {
+            log.warn("账号已被禁用 -> username={}", username);
+            throw new UserAccountDisabledException();
+        }
+
+        // ====== 第六步：生成 Token ======
+        // 构建 JWT Claims
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(SecurityConstants.CLAIM_USER_ID, user.getId());
+        claims.put(SecurityConstants.CLAIM_USERNAME, user.getUsername());
+        claims.put(SecurityConstants.CLAIM_ROLE_TYPE, user.getRoleType().getCode());
+
+        // 生成 AccessToken（15 分钟）
+        long accessTokenExpireSeconds = jwtProperties.getAccessTokenTtl().getSeconds();
+        String accessToken = JwtUtils.createAccessToken(claims, jwtProperties.getSecret(), accessTokenExpireSeconds);
+
+        // 生成 RefreshToken（3 天）
+        long refreshTokenExpireSeconds = jwtProperties.getRefreshTokenTtl().getSeconds();
+        String refreshToken = JwtUtils.createRefreshToken(claims, jwtProperties.getSecret(), refreshTokenExpireSeconds);
+
+        // ====== 第七步：持久化 RefreshToken ======
+        UserRefreshTokenPO refreshTokenPO = new UserRefreshTokenPO();
+        refreshTokenPO.setUserId(user.getId());
+        refreshTokenPO.setDeviceId(deviceId);
+        refreshTokenPO.setRefreshToken(refreshToken);
+        refreshTokenPO.setExpireTime(LocalDateTime.now().plusSeconds(refreshTokenExpireSeconds));
+        refreshTokenPO.setCreateTime(LocalDateTime.now());
+        userRefreshTokenMapper.insert(refreshTokenPO);
+        log.info("RefreshToken 已持久化 -> userId={}, deviceId={}", user.getId(), deviceId);
+
+        // ====== 第八步：更新用户登录信息 ======
+        // 查询或创建 UserProfile
+        UserProfilePO userProfile = userProfileMapper.selectById(user.getId());
+        if (userProfile == null) {
+            userProfile = new UserProfilePO();
+            userProfile.setUserId(user.getId());
+            userProfile.setLastLoginIp(clientIp);
+            userProfile.setLastLoginTime(LocalDateTime.now());
+            userProfile.setLoginCount(1);
+            userProfile.setOnlineStatus(UserEnums.OnlineStatus.ONLINE);
+            userProfile.setTokenVersion(1);
+            userProfileMapper.insert(userProfile);
+        } else {
+            userProfile.setLastLoginIp(clientIp);
+            userProfile.setLastLoginTime(LocalDateTime.now());
+            userProfile.setLoginCount(userProfile.getLoginCount() + 1);
+            userProfile.setOnlineStatus(UserEnums.OnlineStatus.ONLINE);
+            userProfileMapper.updateById(userProfile);
+        }
+        log.info("用户登录信息已更新 -> userId={}, loginCount={}", user.getId(), userProfile.getLoginCount());
+
+        // ====== 第九步：清除登录失败计数 ======
+        failCountCache.evict(failCountKey);
+        log.info("登录失败计数已清除 -> username={}", username);
+
+        // ====== 第十步：清除已使用的验证码 ======
+        verifyCodeCache.evict(cacheKey);
+        log.info("登录验证码已清除 -> email={}", email);
+
+        // ====== 第十一步：返回登录结果 ======
+        return new LoginVO(
+                user.getId(),
+                user.getUsername(),
+                accessToken,
+                refreshToken,
+                accessTokenExpireSeconds
+        );
+    }
+
+    /**
+     * 增加登录失败计数
+     *
+     * @param failCountKey 失败计数 Redis Key
+     * @param cache        缓存实例
+     */
+    private void incrementFailCount(String failCountKey, Cache cache) {
+        Cache.ValueWrapper wrapper = cache.get(failCountKey);
+        int failCount = 1;
+        if (wrapper != null) {
+            failCount = Integer.parseInt(wrapper.get().toString()) + 1;
+        }
+        cache.put(failCountKey, String.valueOf(failCount));
+        log.info("登录失败计数增加 -> key={}, failCount={}", failCountKey, failCount);
     }
 }
