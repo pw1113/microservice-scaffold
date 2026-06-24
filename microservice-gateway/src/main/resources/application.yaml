@@ -1,0 +1,33 @@
+spring:
+  application:
+    name: microservice-gateway
+
+  profiles:
+    active: dev
+
+  config:
+    import: "optional:nacos:${spring.application.name}.yaml"
+
+  # Nacos 服务发现与配置中心（基础设施配置，需在 profile 加载前解析）
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+        namespace: public
+        username: nacos
+        password: nacos
+      config:
+        server-addr: localhost:8848
+        namespace: public
+        file-extension: yaml
+        username: nacos
+        password: nacos
+
+# 服务器配置
+server:
+  port: ${server.port}
+
+# 日志配置
+logging:
+  file:
+    path: logs/microservice-gateway
