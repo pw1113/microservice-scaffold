@@ -16,17 +16,18 @@
     <description>API Gateway - Route, JWT Auth, TraceId, Rate Limit</description>
 
     <dependencies>
-        <!-- Spring Cloud Gateway (WebFlux) -->
-        <dependency>
-            <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
-        </dependency>
-
         <!-- Common 模块 -->
         <dependency>
             <groupId>com.microservice</groupId>
             <artifactId>microservice-common</artifactId>
         </dependency>
+
+        <!-- Spring Cloud Gateway (Reactive/WebFlux) -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-gateway-server-webflux</artifactId>
+        </dependency>
+
 
         <!-- Nacos Discovery -->
         <dependency>
@@ -40,13 +41,8 @@
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
 
-        <!-- Sentinel Gateway -->
-        <dependency>
-            <groupId>com.alibaba.cloud</groupId>
-            <artifactId>spring-cloud-alibaba-sentinel-gateway</artifactId>
-        </dependency>
 
-        <!-- Redis (Token 黑名单) -->
+        <!-- Spring Boot Data Redis -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>

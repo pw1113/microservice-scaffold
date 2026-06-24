@@ -17,16 +17,18 @@
     <description>Common Infrastructure Module - Utils, Config, Exceptions, Base Classes</description>
 
     <dependencies>
-        <!-- Spring Boot Web (提供 Servlet API, Jackson, Validation) -->
+        <!-- Spring Boot Web (optional - 仅使用 Servlet 的模块需要引入) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <optional>true</optional>
         </dependency>
 
-        <!-- Spring Boot Validation -->
+        <!-- Spring Boot Validation (optional - 仅使用 Servlet 的模块需要引入) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-validation</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Boot Data Redis (optional - 仅使用 Redis 的模块需要引入) -->
@@ -92,10 +94,11 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- SpringDoc OpenAPI -->
+        <!-- SpringDoc OpenAPI (optional - 仅使用 Servlet 的模块需要引入) -->
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <optional>true</optional>
         </dependency>
 
         <!-- Spring Boot Mail (optional - 仅需要邮件发送的模块需要引入) -->

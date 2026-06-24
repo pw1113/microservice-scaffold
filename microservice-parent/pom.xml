@@ -18,14 +18,11 @@
     <name>microservice-parent</name>
     <description>Microservice Parent POM - Unified Version &amp; Dependency Management</description>
 
-<!--    <modules>-->
-<!--        <module>../microservice-common</module>-->
-<!--        <module>../microservice-gateway</module>-->
-<!--        <module>../microservice-auth</module>-->
-<!--        <module>../microservice-user</module>-->
-<!--        <module>../microservice-admin</module>-->
-<!--        <module>../microservice-chat</module>-->
-<!--    </modules>-->
+    <modules>
+        <module>../microservice-common</module>
+        <module>../microservice-gateway</module>
+        <module>../microservice-user</module>
+    </modules>
 
     <properties>
         <java.version>21</java.version>
