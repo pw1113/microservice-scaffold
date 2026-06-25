@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.microservice.user.service.mapper.UserRefreshTokenMapper">
+
+    <!--
+        插入或更新 RefreshToken（Upsert 操作）
+        如果 user_id + device_id 不存在，则插入新记录
+        如果 user_id + device_id 已存在，则更新 refresh_token 和 expire_time
+    -->
+    <insert id="upsert" parameterType="com.microservice.user.service.domain.po.UserRefreshTokenPO">
+        INSERT INTO user_refresh_token (user_id, device_id, refresh_token, expire_time, create_time, update_time)
+        VALUES (#{userId}, #{deviceId}, #{refreshToken}, #{expireTime}, #{createTime}, #{updateTime})
+        ON DUPLICATE KEY UPDATE
+            refresh_token = #{refreshToken},
+            expire_time = #{expireTime},
+            update_time = #{updateTime}
+    </insert>
+
+</mapper>

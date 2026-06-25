@@ -341,7 +341,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         long refreshTokenExpireSeconds = jwtProperties.getRefreshTokenTtl().getSeconds();
         String refreshToken = JwtUtils.createRefreshToken(claims, jwtProperties.getSecret(), refreshTokenExpireSeconds);
 
-        // ====== 第七步：持久化 RefreshToken ======
+        // ====== 第七步：持久化 RefreshToken（Upsert：存在则更新，不存在则插入） ======
         UserRefreshTokenPO refreshTokenPO = UserRefreshTokenPO.builder()
                 .userId(user.getId())
                 .deviceId(deviceId)
@@ -349,7 +349,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
                 .expireTime(LocalDateTime.now().plusSeconds(refreshTokenExpireSeconds))
                 .createTime(LocalDateTime.now())
                 .build();
-        userRefreshTokenMapper.insert(refreshTokenPO);
+        userRefreshTokenMapper.upsert(refreshTokenPO);
         log.info("RefreshToken 已持久化 -> userId={}, deviceId={}", user.getId(), deviceId);
 
         // ====== 第八步：更新用户登录信息 ======
