@@ -36,3 +36,4 @@ replay_pid*
 /hm-common/
 # 前端页面代码
 /microservice-frontend/
+/docs/
