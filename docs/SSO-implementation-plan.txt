@@ -1,0 +1,159 @@
+================================================================================
+                    SSO 单点登录 — 渐进式实现计划
+================================================================================
+
+项目：Spring Boot 4.1.0 + Spring Cloud 2025 + Spring Cloud Alibaba 微服务脚手架
+制定日期：2026-06-23
+
+================================================================================
+阶段 1：基础登录登出（先跑通单点）
+================================================================================
+
+目标：一个服务能登录、能鉴权、能登出
+
+  1. 补全 login() 方法
+     - 验证验证码（先于密码校验，从 Redis 读取并比对）
+     - 验证密码（BCrypt）
+     - 检查账号状态（冻结/禁用）
+     - 登录失败计数：连续失败 5 次锁定账号 15 分钟（Redis 计数器 auth:login_fail:{username}）
+     - 生成 accessToken + refreshToken
+     - 持久化 refreshToken 到 user_refresh_token 表
+     - 更新 user_profile 登录信息（lastLoginIp、loginCount、onlineStatus）
+     - 登录成功后清除失败计数
+     - 返回 LoginVO（userId、username、accessToken、refreshToken、expiresIn）
+
+  2. 新增 logout() 方法
+     - 使用 LogoutDTO 封装 accessToken 和 refreshToken
+     - userId 从网关注入的 X-User-Id 头部获取
+     - 将 accessToken 加入 Redis 黑名单（auth:token_blacklist:{token}）
+     - 将 refreshToken 加入 Redis 黑名单（auth:refresh_blacklist:{token}）
+     - 更新 user_profile 的 onlineStatus 为 OFFLINE
+
+  3. 补全 token 黑名单写入逻辑
+     - AuthFilter 已经在读黑名单，需要在 logout 时写入
+     - 黑名单 key 过期时间 = token 剩余有效期（避免 Redis 无限膨胀）
+
+  4. 补全 UserRefreshTokenMapper
+     - UserRefreshTokenPO 已定义，但缺少 Mapper 接口
+     - 需要：按 refreshToken 查询、按 userId+deviceId 查询、插入、删除
+
+验证标准：
+  [x] POST /user/login  返回 accessToken + refreshToken
+  [x] 带 accessToken 请求受保护接口，网关放行并传递用户信息
+  [x] 不带 token 请求受保护接口，网关返回 401
+  [x] POST /user/logout 后，原 accessToken 失效（Redis 黑名单拦截）
+  [x] refreshToken 能正确持久化到数据库
+  [x] 网关 AuthFilter 检查 Token 黑名单（auth:token_blacklist:{token}）
+
+================================================================================
+阶段 2：Token 刷新机制
+================================================================================
+
+目标：accessToken 过期后无感续期
+
+  1. 新增 /user/refresh 端点
+     - 接收 refreshToken
+     - 验证有效性：未过期、未在 Redis 黑名单、DB 中存在
+     - 签发新 accessToken
+     - 默认开启 refreshToken 轮转（旧的失效，签发新的，防止泄露后被长期利用）
+
+  2. 前端配合
+     - 拦截 HTTP 401 响应
+     - 自动调用 /user/refresh 接口获取新 accessToken
+     - 用新 token 重放原失败请求
+     - 如果 refresh 也失败，则跳转登录页
+
+  3. Token 版本校验
+     - AuthFilter 解析 JWT 时比对 claims 中的 tokenVersion 与 Redis 中的版本（不查 DB，避免性能问题）
+     - 启动时或 tokenVersion 变更时同步到 Redis（key: auth:token_version:{userId}）
+     - 管理员踢人下线：递增 DB 中 user_profile.tokenVersion，并同步更新 Redis
+     - 所有携带旧 version 的 token 自动失效
+
+  4. 多设备会话管理
+     - LoginDTO 中已有 deviceId 字段
+     - UserRefreshTokenPO 按 userId + deviceId 存储
+     - 支持"踢掉指定设备"、"踢掉所有设备"
+
+验证标准：
+  [x] accessToken 过期后，调用 /user/refresh 获取新 token
+  [x] 前端自动续期，用户无感知
+  [x] 管理员递增 tokenVersion 后，用户所有 token 立即失效
+  [x] 踢掉指定设备后，该设备的 refreshToken 失效
+
+================================================================================
+阶段 3：抽取独立 Auth 服务
+================================================================================
+
+目标：认证逻辑与用户服务解耦
+
+  1. 新建 microservice-auth 模块
+     - 参照 microservice-user 的模块结构（api + service 子模块）
+     - 迁移登录、登出、刷新、验证码等接口
+     - Auth 服务负责：认证、签发/刷新/注销 Token
+
+  2. Auth 服务通过 Feign 调用 User 服务
+     - 查询用户信息（根据 username/email）→ User 服务暴露内部接口 GET /internal/user?username=xxx
+     - 校验密码（BCrypt）→ User 服务暴露内部接口 POST /internal/user/check-password（传入 userId + rawPassword）
+     - 更新登录信息（lastLoginIp、loginCount、onlineStatus）→ User 服务暴露内部接口 PUT /internal/user/{id}/login-info
+     - 注意：内部接口需在网关白名单中排除（/internal/**），且仅允许内网调用
+
+  3. 网关路由调整
+     - /auth/** -> lb://microservice-auth
+     - /user/** -> lb://microservice-user
+     - 其他微服务的鉴权统一由网关 AuthFilter 处理
+
+  4. User 服务瘦身
+     - 只保留用户 CRUD 接口
+     - 不再处理认证逻辑
+     - 通过 UserContext 获取当前用户信息（网关已注入 header）
+
+  5. 依赖调整
+     - microservice-auth 引入 jjwt、spring-security-crypto
+     - microservice-user 可移除认证相关依赖
+
+验证标准：
+  [x] POST /auth/login 请求到达 auth 服务
+  [x] auth 服务通过 Feign 获取 user 服务的用户数据
+  [x] GET /user/{id} 正常工作，网关鉴权通过
+  [x] 两个服务独立部署、独立扩缩容
+
+================================================================================
+阶段 4：多系统 SSO（按需实施）
+================================================================================
+
+目标：多个子系统共享登录态
+
+  方案 A：网关统一鉴权 + Token 共享（推荐，最轻量）
+  ──────────────────────────────────────────────────────
+    - 所有子系统（前端、管理后台、移动端）都走同一个网关
+    - Token 校验在网关层完成，下游服务只读 header 中的用户信息
+    - 你当前的架构已经在做这件事，只需要扩展路由即可
+    - 状态数据（Token 黑名单、tokenVersion、登录失败计数）统一存 Redis，多网关实例共享
+    - 优点：改动最小，不需要引入新框架
+    - 适用：内部系统、前后端分离项目
+
+  方案 B：OAuth2 / OIDC 标准协议
+  ──────────────────────────────────────────────────────
+    - 引入 spring-boot-starter-oauth2-resource-server
+    - 网关升级为 OAuth2 Resource Server
+    - 支持标准 OIDC 协议，第三方系统可通过授权码流程接入
+    - 优点：标准化，支持第三方系统接入
+    - 适用：需要对接外部系统、开放平台
+
+  实施建议：
+    - 如果只是内部几个子系统共享登录态，方案 A 足够
+    - 如果需要对外开放授权、支持第三方接入，再升级到方案 B
+    - 方案 A -> 方案 B 是平滑升级路径，不会浪费已有工作
+
+================================================================================
+总结
+================================================================================
+
+  阶段 1（基础登录登出）    — 最高优先级，投入产出比最高，已有 80% 基础设施
+  阶段 2（Token 刷新）      — 用户体验关键，accessToken 15 分钟过期后无感续期
+  阶段 3（独立 Auth 服务）  — 架构解耦，适合团队协作和服务独立扩缩容
+  阶段 4（多系统 SSO）      — 按需实施，内部系统用方案 A 即可
+
+  建议从阶段 1 开始，每完成一个阶段验证通过后再进入下一阶段。
+
+================================================================================
