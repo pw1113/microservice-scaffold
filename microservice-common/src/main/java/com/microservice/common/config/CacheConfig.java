@@ -39,6 +39,12 @@ public class CacheConfig {
     /** 登录失败计数缓存名称，对应 Redis 中的缓存前缀 */
     public static final String CACHE_LOGIN_FAIL_COUNT = "login_fail_count";
 
+    /** Token 黑名单缓存名称，对应 Redis 中的缓存前缀 */
+    public static final String CACHE_TOKEN_BLACKLIST = "token_blacklist";
+
+    /** RefreshToken 黑名单缓存名称，对应 Redis 中的缓存前缀 */
+    public static final String CACHE_REFRESH_BLACKLIST = "refresh_blacklist";
+
     /** 验证码缓存默认过期时间（分钟），与业务层验证码有效期保持一致 */
     private static final long VERIFY_CODE_EXPIRE_MINUTES = 5;
 

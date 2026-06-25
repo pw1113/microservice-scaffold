@@ -3,6 +3,7 @@ package com.microservice.user.service.controller;
 
 import com.microservice.common.result.Result;
 import com.microservice.user.service.domain.dto.LoginDTO;
+import com.microservice.user.service.domain.dto.LogoutDTO;
 import com.microservice.user.service.domain.dto.SendVerifyCodeDTO;
 import com.microservice.user.service.domain.dto.UserCreateDTO;
 import com.microservice.user.service.domain.dto.UserUpdateDTO;
@@ -148,6 +149,22 @@ public class UserController {
         String clientIp = getClientIp(request);
         LoginVO loginVO = userService.login(loginDTO, clientIp);
         return Result.success(loginVO);
+    }
+
+    /**
+     * 用户登出
+     */
+    @PostMapping("/logout")
+    @Operation(
+            summary = "用户登出",
+            description = "用户登出接口。将 accessToken 和 refreshToken 加入 Redis 黑名单，" +
+                    "并更新用户在线状态为 OFFLINE。登出后原 Token 立即失效。"
+    )
+    public Result<Void> logout(@RequestBody @Valid LogoutDTO dto,
+                               @RequestHeader("X-User-Id") Long userId) {
+        log.info("收到登出请求 -> userId={}", userId);
+        userService.logout(dto.getAccessToken(), dto.getRefreshToken(), userId);
+        return Result.success("登出成功", null);
     }
 
     /**

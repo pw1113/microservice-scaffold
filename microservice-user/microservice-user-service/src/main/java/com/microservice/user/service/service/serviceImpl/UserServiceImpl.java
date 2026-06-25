@@ -35,20 +35,24 @@ import com.microservice.user.service.mapper.UserMapper;
 import com.microservice.user.service.mapper.UserProfileMapper;
 import com.microservice.user.service.mapper.UserRefreshTokenMapper;
 import com.microservice.user.service.service.IUserService;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -62,6 +66,7 @@ import java.util.stream.Collectors;
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements IUserService {
 
     private final CacheManager cacheManager;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final JavaMailSender javaMailSender;
     private final JwtProperties jwtProperties;
     private final UserMapper userMapper;
@@ -401,5 +406,53 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         }
         cache.put(failCountKey, String.valueOf(failCount));
         log.info("登录失败计数增加 -> key={}, failCount={}", failCountKey, failCount);
+    }
+
+    @Override
+    public void logout(String accessToken, String refreshToken, Long userId) {
+        // ====== 第一步：将 accessToken 加入 Redis 黑名单 ======
+        // 计算 token 剩余有效期作为黑名单 TTL，避免 Redis 无限膨胀
+        long accessTokenRemainingTtl = calculateTokenRemainingTtl(accessToken);
+        if (accessTokenRemainingTtl > 0) {
+            String accessTokenBlacklistKey = SecurityConstants.REDIS_KEY_TOKEN_BLACKLIST + accessToken;
+            redisTemplate.opsForValue().set(accessTokenBlacklistKey, "1", accessTokenRemainingTtl, TimeUnit.SECONDS);
+            log.info("AccessToken 已加入黑名单 -> userId={}, remainingTtl={}s", userId, accessTokenRemainingTtl);
+        }
+
+        // ====== 第二步：将 refreshToken 加入 Redis 黑名单 ======
+        long refreshTokenRemainingTtl = calculateTokenRemainingTtl(refreshToken);
+        if (refreshTokenRemainingTtl > 0) {
+            String refreshTokenBlacklistKey = SecurityConstants.REDIS_KEY_REFRESH_BLACKLIST + refreshToken;
+            redisTemplate.opsForValue().set(refreshTokenBlacklistKey, "1", refreshTokenRemainingTtl, TimeUnit.SECONDS);
+            log.info("RefreshToken 已加入黑名单 -> userId={}, remainingTtl={}s", userId, refreshTokenRemainingTtl);
+        }
+
+        // ====== 第三步：更新用户在线状态为 OFFLINE ======
+        UserProfilePO userProfile = userProfileMapper.selectById(userId);
+        if (userProfile != null) {
+            userProfile.setOnlineStatus(UserEnums.OnlineStatus.OFFLINE);
+            userProfileMapper.updateById(userProfile);
+            log.info("用户在线状态已更新为 OFFLINE -> userId={}", userId);
+        }
+
+        log.info("用户登出成功 -> userId={}", userId);
+    }
+
+    /**
+     * 计算 Token 剩余有效期（秒）
+     *
+     * @param token JWT Token
+     * @return 剩余有效期（秒），如果 token 无效或已过期返回 -1
+     */
+    private long calculateTokenRemainingTtl(String token) {
+        try {
+            Claims claims = JwtUtils.parseToken(token, jwtProperties.getSecret());
+            Date expiration = claims.getExpiration();
+            long remainingMs = expiration.getTime() - System.currentTimeMillis();
+            return remainingMs > 0 ? remainingMs / 1000 : -1;
+        } catch (Exception e) {
+            log.warn("解析 Token 失败，跳过黑名单写入: {}", e.getMessage());
+            return -1;
+        }
     }
 }

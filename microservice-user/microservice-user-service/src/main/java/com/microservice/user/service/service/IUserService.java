@@ -98,4 +98,17 @@ public interface IUserService extends IService<UserPO> {
      * @return 登录响应结果（userId、username、accessToken、refreshToken、expiresIn）
      */
     LoginVO login(LoginDTO loginDTO, String clientIp);
+
+    /**
+     * 用户登出
+     * <p>
+     * 完整登出流程：将 accessToken 加入 Redis 黑名单 → 将 refreshToken 加入 Redis 黑名单 →
+     * 更新用户在线状态为 OFFLINE。黑名单 Token 的过期时间等于 Token 剩余有效期，避免 Redis 无限膨胀。
+     * </p>
+     *
+     * @param accessToken  访问令牌
+     * @param refreshToken 刷新令牌
+     * @param userId       用户ID
+     */
+    void logout(String accessToken, String refreshToken, Long userId);
 }
