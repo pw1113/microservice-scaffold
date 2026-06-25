@@ -1,6 +1,7 @@
 package com.microservice.user.service.service.serviceImpl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.bean.copier.CopyOptions;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.microservice.common.config.CacheConfig;
@@ -47,6 +48,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
@@ -133,16 +135,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
             throw new UserNotFoundException();
         }
         // 构建更新对象，仅更新非空字段（MyBatis-Plus 已配置 update-strategy: not_null）
-        UserPO updatePO = new UserPO();
-        updatePO.setId(dto.getId());
-        updatePO.setEmail(dto.getEmail());
-        updatePO.setPhone(dto.getPhone());
-        updatePO.setQq(dto.getQq());
-        updatePO.setWechat(dto.getWechat());
-        updatePO.setAvatar(dto.getAvatar());
-        updatePO.setGender(dto.getGender());
-        updatePO.setAge(dto.getAge());
-        updatePO.setDescription(dto.getDescription());
+        // 使用 Hutool BeanUtil 复制属性，忽略 null 值
+        UserPO updatePO = BeanUtil.toBean(dto, UserPO.class, CopyOptions.create().setIgnoreNullValue(true));
         this.updateById(updatePO);
         log.info("用户信息已更新 -> id={}", dto.getId());
     }
@@ -180,11 +174,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
 
         // ====== 第三步：构建用户实体并写入数据库 ======
         // 密码使用 BCrypt 加密存储，不可逆
-        UserPO user = new UserPO();
-        user.setUsername(dto.getUsername());
-        user.setPassword(EncryptUtils.encode(dto.getPassword()));
-        user.setEmail(dto.getEmail());
         // 其他字段使用数据库默认值：avatar、gender、roleType、status、deleted
+        UserPO user = UserPO.builder()
+                .username(dto.getUsername())
+                .password(EncryptUtils.encode(dto.getPassword()))
+                .email(dto.getEmail())
+                .build();
         this.save(user);
         log.info("用户注册成功 -> id={}, username={}", user.getId(), user.getUsername());
 
@@ -272,7 +267,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         String failCountKey = SecurityConstants.REDIS_KEY_LOGIN_FAIL_COUNT + username;
         Cache.ValueWrapper failCountWrapper = failCountCache.get(failCountKey);
         if (failCountWrapper != null) {
-            int failCount = Integer.parseInt(failCountWrapper.get().toString());
+            int failCount = Integer.parseInt(Objects.requireNonNull(failCountWrapper.get()).toString());
             if (failCount >= SecurityConstants.LOGIN_FAIL_MAX_COUNT) {
                 log.warn("登录失败次数超限 -> username={}, failCount={}", username, failCount);
                 throw new LoginFailLimitExceededException();
@@ -282,6 +277,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         // ====== 第二步：验证邮箱验证码 ======
         // 从 Redis 中获取登录验证码缓存，key 格式：verify_code::auth:login_verify_code:{email}
         Cache verifyCodeCache = cacheManager.getCache(CacheConfig.CACHE_VERIFY_CODE);
+        if (verifyCodeCache == null) {
+            throw new IllegalStateException("验证码缓存未初始化，请检查 CacheConfig 配置");
+        }
         String cacheKey = SecurityConstants.REDIS_KEY_LOGIN_VERIFY_CODE + email;
         Cache.ValueWrapper wrapper = verifyCodeCache.get(cacheKey);
 
@@ -339,12 +337,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         String refreshToken = JwtUtils.createRefreshToken(claims, jwtProperties.getSecret(), refreshTokenExpireSeconds);
 
         // ====== 第七步：持久化 RefreshToken ======
-        UserRefreshTokenPO refreshTokenPO = new UserRefreshTokenPO();
-        refreshTokenPO.setUserId(user.getId());
-        refreshTokenPO.setDeviceId(deviceId);
-        refreshTokenPO.setRefreshToken(refreshToken);
-        refreshTokenPO.setExpireTime(LocalDateTime.now().plusSeconds(refreshTokenExpireSeconds));
-        refreshTokenPO.setCreateTime(LocalDateTime.now());
+        UserRefreshTokenPO refreshTokenPO = UserRefreshTokenPO.builder()
+                .userId(user.getId())
+                .deviceId(deviceId)
+                .refreshToken(refreshToken)
+                .expireTime(LocalDateTime.now().plusSeconds(refreshTokenExpireSeconds))
+                .createTime(LocalDateTime.now())
+                .build();
         userRefreshTokenMapper.insert(refreshTokenPO);
         log.info("RefreshToken 已持久化 -> userId={}, deviceId={}", user.getId(), deviceId);
 
@@ -352,13 +351,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         // 查询或创建 UserProfile
         UserProfilePO userProfile = userProfileMapper.selectById(user.getId());
         if (userProfile == null) {
-            userProfile = new UserProfilePO();
-            userProfile.setUserId(user.getId());
-            userProfile.setLastLoginIp(clientIp);
-            userProfile.setLastLoginTime(LocalDateTime.now());
-            userProfile.setLoginCount(1);
-            userProfile.setOnlineStatus(UserEnums.OnlineStatus.ONLINE);
-            userProfile.setTokenVersion(1);
+            userProfile = UserProfilePO.builder()
+                    .userId(user.getId())
+                    .lastLoginIp(clientIp)
+                    .lastLoginTime(LocalDateTime.now())
+                    .loginCount(1)
+                    .onlineStatus(UserEnums.OnlineStatus.ONLINE)
+                    .tokenVersion(1)
+                    .build();
             userProfileMapper.insert(userProfile);
         } else {
             userProfile.setLastLoginIp(clientIp);
@@ -378,13 +378,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         log.info("登录验证码已清除 -> email={}", email);
 
         // ====== 第十一步：返回登录结果 ======
-        return new LoginVO(
-                user.getId(),
-                user.getUsername(),
-                accessToken,
-                refreshToken,
-                accessTokenExpireSeconds
-        );
+        return LoginVO.builder()
+                .userId(user.getId())
+                .username(user.getUsername())
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .expiresIn(accessTokenExpireSeconds)
+                .build();
     }
 
     /**
@@ -397,7 +397,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         Cache.ValueWrapper wrapper = cache.get(failCountKey);
         int failCount = 1;
         if (wrapper != null) {
-            failCount = Integer.parseInt(wrapper.get().toString()) + 1;
+            failCount = Integer.parseInt(Objects.requireNonNull(wrapper.get()).toString()) + 1;
         }
         cache.put(failCountKey, String.valueOf(failCount));
         log.info("登录失败计数增加 -> key={}, failCount={}", failCountKey, failCount);

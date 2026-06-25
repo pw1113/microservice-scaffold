@@ -1,12 +1,14 @@
 package com.microservice.user.service.domain.vo;
 
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 
 /**
  * 登录响应结果
  */
 @Data
+@Builder
 @AllArgsConstructor
 public class LoginVO {
     /** 用户ID */

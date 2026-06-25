@@ -3,6 +3,7 @@ package com.microservice.user.service.domain.po;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
+import lombok.Builder;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -10,6 +11,7 @@ import java.time.LocalDateTime;
  * 用户刷新令牌持久化对象
  */
 @Data
+@Builder
 @TableName("user_refresh_token")
 public class UserRefreshTokenPO {
     /** 主键ID */

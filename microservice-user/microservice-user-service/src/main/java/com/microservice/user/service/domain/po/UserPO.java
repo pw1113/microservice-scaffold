@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.microservice.user.service.enums.UserEnums;
+import lombok.Builder;
 import lombok.Data;
 import java.time.LocalDateTime;
 
@@ -11,6 +12,7 @@ import java.time.LocalDateTime;
  * 用户持久化对象
  */
 @Data
+@Builder
 @TableName("user")
 public class UserPO {
     /** 主键ID */
