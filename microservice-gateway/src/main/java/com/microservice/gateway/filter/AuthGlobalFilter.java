@@ -93,27 +93,51 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                         return unauthorized(exchange, "Token 已失效，请重新登录");
                     }
 
-                    // 6. 提取用户信息并透传到下游服务
+                    // 5.5 校验 tokenVersion（每次登录递增，旧 Token 自动失效）
+                    Object tokenVersionObj = claims.get(SecurityConstants.CLAIM_TOKEN_VERSION);
+                    if (tokenVersionObj == null) {
+                        log.warn("[Gateway] Token 缺少 tokenVersion: {} {}", method, path);
+                        return unauthorized(exchange, "Token 已失效，请重新登录");
+                    }
+
                     String userId = String.valueOf(claims.get(SecurityConstants.CLAIM_USER_ID));
-                    String username = (String) claims.get(SecurityConstants.CLAIM_USERNAME);
-                    String roleType = String.valueOf(claims.get(SecurityConstants.CLAIM_ROLE_TYPE));
+                    String tokenVersionKey = SecurityConstants.REDIS_KEY_TOKEN_VERSION + userId;
 
-                    log.info("[Gateway] Token 校验通过: userId={}, username={}", userId, username);
-
-                    ServerWebExchange mutatedExchange = exchange.mutate()
-                            .request(builder -> {
-                                builder.header(SecurityConstants.HEADER_USER_ID, userId);
-                                if (username != null) {
-                                    builder.header(SecurityConstants.HEADER_USER_NAME, username);
+                    return reactiveRedisTemplate.opsForValue().get(tokenVersionKey)
+                            .flatMap(currentVersion -> {
+                                if (currentVersion == null) {
+                                    log.warn("[Gateway] tokenVersion 不存在: userId={}", userId);
+                                    return unauthorized(exchange, "Token 已失效，请重新登录");
                                 }
-                                if (roleType != null) {
-                                    builder.header(SecurityConstants.HEADER_USER_ROLE, roleType);
-                                }
-                            })
-                            .build();
 
-                    // 7. 放行
-                    return chain.filter(mutatedExchange);
+                                String jwtVersion = String.valueOf(tokenVersionObj);
+                                if (!jwtVersion.equals(currentVersion)) {
+                                    log.warn("[Gateway] tokenVersion 不匹配: userId={}, jwt={}, redis={}",
+                                            userId, jwtVersion, currentVersion);
+                                    return unauthorized(exchange, "Token 已失效，请重新登录");
+                                }
+
+                                // 6. 提取用户信息并透传到下游服务
+                                String username = (String) claims.get(SecurityConstants.CLAIM_USERNAME);
+                                String roleType = String.valueOf(claims.get(SecurityConstants.CLAIM_ROLE_TYPE));
+
+                                log.info("[Gateway] Token 校验通过: userId={}, username={}", userId, username);
+
+                                ServerWebExchange mutatedExchange = exchange.mutate()
+                                        .request(builder -> {
+                                            builder.header(SecurityConstants.HEADER_USER_ID, userId);
+                                            if (username != null) {
+                                                builder.header(SecurityConstants.HEADER_USER_NAME, username);
+                                            }
+                                            if (roleType != null) {
+                                                builder.header(SecurityConstants.HEADER_USER_ROLE, roleType);
+                                            }
+                                        })
+                                        .build();
+
+                                // 7. 放行
+                                return chain.filter(mutatedExchange);
+                            });
                 });
     }
 

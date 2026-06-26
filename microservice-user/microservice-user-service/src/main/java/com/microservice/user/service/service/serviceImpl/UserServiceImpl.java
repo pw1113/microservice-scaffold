@@ -68,6 +68,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
 
     private final CacheManager cacheManager;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final RedisTemplate<String, String> stringRedisTemplate;
     private final JavaMailSender javaMailSender;
     private final JwtProperties jwtProperties;
     private final UserMapper userMapper;
@@ -327,34 +328,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
             throw new UserAccountDisabledException();
         }
 
-        // ====== 第六步：生成 Token ======
-        // 构建 JWT Claims
-        Map<String, Object> claims = new HashMap<>();
-        claims.put(SecurityConstants.CLAIM_USER_ID, user.getId());
-        claims.put(SecurityConstants.CLAIM_USERNAME, user.getUsername());
-        claims.put(SecurityConstants.CLAIM_ROLE_TYPE, user.getRoleType().getCode());
-
-        // 生成 AccessToken（15 分钟）
-        long accessTokenExpireSeconds = jwtProperties.getAccessTokenTtl().getSeconds();
-        String accessToken = JwtUtils.createAccessToken(claims, jwtProperties.getSecret(), accessTokenExpireSeconds);
-
-        // 生成 RefreshToken（3 天）
-        long refreshTokenExpireSeconds = jwtProperties.getRefreshTokenTtl().getSeconds();
-        String refreshToken = JwtUtils.createRefreshToken(claims, jwtProperties.getSecret(), refreshTokenExpireSeconds);
-
-        // ====== 第七步：持久化 RefreshToken（Upsert：存在则更新，不存在则插入） ======
-        UserRefreshTokenPO refreshTokenPO = UserRefreshTokenPO.builder()
-                .userId(user.getId())
-                .deviceId(deviceId)
-                .refreshToken(refreshToken)
-                .expireTime(LocalDateTime.now().plusSeconds(refreshTokenExpireSeconds))
-                .createTime(LocalDateTime.now())
-                .build();
-        userRefreshTokenMapper.upsert(refreshTokenPO);
-        log.info("RefreshToken 已持久化 -> userId={}, deviceId={}", user.getId(), deviceId);
-
-        // ====== 第八步：更新用户登录信息 ======
-        // 查询或创建 UserProfile
+        // ====== 第六步：更新用户登录信息（先于 Token 生成，确保 tokenVersion 已递增） ======
         UserProfilePO userProfile = userProfileMapper.selectById(user.getId());
         if (userProfile == null) {
             userProfile = UserProfilePO.builder()
@@ -371,19 +345,56 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
             userProfile.setLastLoginTime(LocalDateTime.now());
             userProfile.setLoginCount(userProfile.getLoginCount() + 1);
             userProfile.setOnlineStatus(UserEnums.OnlineStatus.ONLINE);
+            userProfile.setTokenVersion(userProfile.getTokenVersion() + 1);
             userProfileMapper.updateById(userProfile);
         }
-        log.info("用户登录信息已更新 -> userId={}, loginCount={}", user.getId(), userProfile.getLoginCount());
+        log.info("用户登录信息已更新 -> userId={}, loginCount={}, tokenVersion={}",
+                user.getId(), userProfile.getLoginCount(), userProfile.getTokenVersion());
 
-        // ====== 第九步：清除登录失败计数 ======
+        // ====== 第七步：生成 Token（包含 tokenVersion） ======
+        Map<String, Object> claims = new HashMap<>();
+        claims.put(SecurityConstants.CLAIM_USER_ID, user.getId());
+        claims.put(SecurityConstants.CLAIM_USERNAME, user.getUsername());
+        claims.put(SecurityConstants.CLAIM_ROLE_TYPE, user.getRoleType().getCode());
+        claims.put(SecurityConstants.CLAIM_TOKEN_VERSION, userProfile.getTokenVersion());
+
+        long accessTokenExpireSeconds = jwtProperties.getAccessTokenTtl().getSeconds();
+        String accessToken = JwtUtils.createAccessToken(claims, jwtProperties.getSecret(), accessTokenExpireSeconds);
+
+        long refreshTokenExpireSeconds = jwtProperties.getRefreshTokenTtl().getSeconds();
+        String refreshToken = JwtUtils.createRefreshToken(claims, jwtProperties.getSecret(), refreshTokenExpireSeconds);
+
+        // ====== 第八步：同步 tokenVersion 到 Redis（网关校验用） ======
+        // 必须使用 StringRedisTemplate，确保序列化方式与网关 ReactiveRedisTemplate<String, String> 一致
+        String tokenVersionKey = SecurityConstants.REDIS_KEY_TOKEN_VERSION + user.getId();
+        stringRedisTemplate.opsForValue().set(
+                tokenVersionKey,
+                String.valueOf(userProfile.getTokenVersion()),
+                refreshTokenExpireSeconds,
+                TimeUnit.SECONDS
+        );
+        log.info("tokenVersion 已同步到 Redis -> userId={}, tokenVersion={}", user.getId(), userProfile.getTokenVersion());
+
+        // ====== 第九步：持久化 RefreshToken（Upsert：存在则更新，不存在则插入） ======
+        UserRefreshTokenPO refreshTokenPO = UserRefreshTokenPO.builder()
+                .userId(user.getId())
+                .deviceId(deviceId)
+                .refreshToken(refreshToken)
+                .expireTime(LocalDateTime.now().plusSeconds(refreshTokenExpireSeconds))
+                .createTime(LocalDateTime.now())
+                .build();
+        userRefreshTokenMapper.upsert(refreshTokenPO);
+        log.info("RefreshToken 已持久化 -> userId={}, deviceId={}", user.getId(), deviceId);
+
+        // ====== 第十步：清除登录失败计数 ======
         failCountCache.evict(failCountKey);
         log.info("登录失败计数已清除 -> username={}", username);
 
-        // ====== 第十步：清除已使用的验证码 ======
+        // ====== 第十一步：清除已使用的验证码 ======
         verifyCodeCache.evict(cacheKey);
         log.info("登录验证码已清除 -> email={}", email);
 
-        // ====== 第十一步：返回登录结果 ======
+        // ====== 第十二步：返回登录结果 ======
         return LoginVO.builder()
                 .userId(user.getId())
                 .username(user.getUsername())
