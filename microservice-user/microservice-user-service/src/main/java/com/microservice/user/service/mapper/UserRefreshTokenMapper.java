@@ -24,4 +24,38 @@ public interface UserRefreshTokenMapper extends BaseMapper<UserRefreshTokenPO> {
      * @return 影响行数
      */
     int upsert(UserRefreshTokenPO refreshTokenPO);
+
+    /**
+     * 根据 refreshToken 查询记录
+     *
+     * @param refreshToken 刷新令牌
+     * @return 匹配的记录，不存在返回 null
+     */
+    UserRefreshTokenPO selectByRefreshToken(String refreshToken);
+
+    /**
+     * 根据 userId + deviceId 查询记录
+     *
+     * @param userId   用户 ID
+     * @param deviceId 设备标识
+     * @return 匹配的记录，不存在返回 null
+     */
+    UserRefreshTokenPO selectByUserIdAndDeviceId(Long userId, String deviceId);
+
+    /**
+     * 根据 userId + deviceId 删除记录（踢掉指定设备）
+     *
+     * @param userId   用户 ID
+     * @param deviceId 设备标识
+     * @return 影响行数
+     */
+    int deleteByUserIdAndDeviceId(Long userId, String deviceId);
+
+    /**
+     * 根据 userId 删除所有记录（踢掉所有设备）
+     *
+     * @param userId 用户 ID
+     * @return 影响行数
+     */
+    int deleteByUserId(Long userId);
 }

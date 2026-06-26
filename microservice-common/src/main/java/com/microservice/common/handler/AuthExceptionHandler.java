@@ -3,12 +3,12 @@ package com.microservice.common.handler;
 import com.microservice.common.exception.BusinessException;
 import com.microservice.common.exception.UnauthorizedException;
 import com.microservice.common.exception.auth.LoginFailLimitExceededException;
+import com.microservice.common.exception.auth.LoginUserNotFoundException;
 import com.microservice.common.exception.token.RefreshTokenExpiredException;
 import com.microservice.common.exception.token.RefreshTokenInvalidException;
 import com.microservice.common.exception.token.TokenBlacklistedException;
 import com.microservice.common.exception.token.TokenExpiredException;
 import com.microservice.common.exception.token.TokenInvalidException;
-import com.microservice.common.exception.user.UserNotFoundException;
 import com.microservice.common.exception.user.UserNotLoginException;
 import com.microservice.common.exception.user.UserPasswordErrorException;
 import com.microservice.common.exception.verifycode.VerificationCodeCooldownException;
@@ -19,6 +19,8 @@ import com.microservice.common.result.Result;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
  */
 @Slf4j
 @RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 public class AuthExceptionHandler {
 
@@ -43,7 +46,7 @@ public class AuthExceptionHandler {
             RefreshTokenExpiredException.class,
             RefreshTokenInvalidException.class,
             UserNotLoginException.class,
-            UserNotFoundException.class,
+            LoginUserNotFoundException.class,
             UserPasswordErrorException.class,
             UnauthorizedException.class
     })

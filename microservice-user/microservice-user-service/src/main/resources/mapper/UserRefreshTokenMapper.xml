@@ -16,4 +16,30 @@
             update_time = #{updateTime}
     </insert>
 
+    <!-- 根据 refreshToken 查询记录 -->
+    <select id="selectByRefreshToken" resultType="com.microservice.user.service.domain.po.UserRefreshTokenPO">
+        SELECT id, user_id, device_id, refresh_token, expire_time, create_time, update_time
+        FROM user_refresh_token
+        WHERE refresh_token = #{refreshToken}
+    </select>
+
+    <!-- 根据 userId + deviceId 查询记录 -->
+    <select id="selectByUserIdAndDeviceId" resultType="com.microservice.user.service.domain.po.UserRefreshTokenPO">
+        SELECT id, user_id, device_id, refresh_token, expire_time, create_time, update_time
+        FROM user_refresh_token
+        WHERE user_id = #{userId} AND device_id = #{deviceId}
+    </select>
+
+    <!-- 根据 userId + deviceId 删除记录（踢掉指定设备） -->
+    <delete id="deleteByUserIdAndDeviceId">
+        DELETE FROM user_refresh_token
+        WHERE user_id = #{userId} AND device_id = #{deviceId}
+    </delete>
+
+    <!-- 根据 userId 删除所有记录（踢掉所有设备） -->
+    <delete id="deleteByUserId">
+        DELETE FROM user_refresh_token
+        WHERE user_id = #{userId}
+    </delete>
+
 </mapper>

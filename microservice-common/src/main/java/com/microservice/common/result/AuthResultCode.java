@@ -16,7 +16,8 @@ public enum AuthResultCode implements IResultCode {
     TOKEN_INVALID(2002, "Token无效或已过期"),
     TOKEN_BLACKLISTED(2003, "Token已被注销"),
     REFRESH_TOKEN_INVALID(2004, "RefreshToken无效或已过期"),
-    REFRESH_TOKEN_BLACKLISTED(2005, "RefreshToken已被注销");
+    REFRESH_TOKEN_BLACKLISTED(2005, "RefreshToken已被注销"),
+    LOGIN_USER_NOT_FOUND(2006, "用户不存在");
 
     /** 状态码 */
     private final Integer code;

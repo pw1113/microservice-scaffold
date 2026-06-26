@@ -8,6 +8,7 @@ import com.microservice.common.config.CacheConfig;
 import com.microservice.common.constant.SecurityConstants;
 import com.microservice.common.enums.VerifyCodeType;
 import com.microservice.common.exception.auth.LoginFailLimitExceededException;
+import com.microservice.common.exception.auth.LoginUserNotFoundException;
 import com.microservice.common.exception.user.UserAccountDisabledException;
 import com.microservice.common.exception.user.UserAccountFrozenException;
 import com.microservice.common.exception.user.UserAlreadyExistsException;
@@ -306,7 +307,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserPO> implements 
         if (user == null) {
             log.warn("用户不存在 -> username={}", username);
             incrementFailCount(failCountKey, failCountCache);
-            throw new UserNotFoundException();
+            throw new LoginUserNotFoundException();
         }
 
         // ====== 第四步：验证密码 ======
